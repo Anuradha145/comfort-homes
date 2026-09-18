@@ -7,11 +7,9 @@ description = "Comfort Homes lending customisations for Frappe, ERPNext, and Len
 requires-python = ">=3.10"
 readme = "README.md"
 dynamic = ["version"]
-dependencies = [
-    "frappe>=16.0.0,<17.0.0",
-    "erpnext>=16.0.0,<17.0.0",
-    "lending>=16.0.0,<17.0.0",
-]
+# Frappe Cloud provides framework apps in its bench. Do not declare them as
+# Python dependencies: doing so forces uv to re-resolve Frappe itself.
+dependencies = []
 
 [tool.bench.frappe-dependencies]
 frappe = ">=16.0.0,<17.0.0"
