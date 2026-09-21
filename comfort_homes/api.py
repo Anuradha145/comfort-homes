@@ -8,7 +8,6 @@ import frappe
 from frappe import _
 
 
-BANK_ACCOUNTS = {"BSP Flexi 87349722": "1004 - BSP - Flexi - 87349722 - CHFPL"}
 DEFAULT_COMPANY = "Comfort Home Furnishing PTE Limited"
 CARD_PREFIXES = ("GRA", "NAM", "LTK", "NAU", "DEN", "NOU", "SC2")
 
@@ -53,6 +52,24 @@ def parse_bsp_date(value):
 		return datetime.strptime((value or "").strip(), "%d/%m/%Y").date()
 	except ValueError:
 		return None
+
+
+def get_payment_account(bank_account):
+	"""Use the Account selected on the reconciliation, including old imports."""
+	if frappe.db.exists("Account", bank_account):
+		return bank_account
+
+	# Reconciliations created before v16.0.2 stored a display label rather than
+	# the Account document name. Resolve it only when there is one clear match.
+	matches = frappe.get_all(
+		"Account",
+		filters={"name": ["like", f"%{bank_account}%"], "is_group": 0},
+		pluck="name",
+		limit_page_length=2,
+	)
+	if len(matches) == 1:
+		return matches[0]
+	frappe.throw(_("Select a valid ledger Account in Bank Account before creating repayments."))
 
 
 @frappe.whitelist()
@@ -113,9 +130,7 @@ def import_statement(doc):
 
 
 def create_repayments(doc):
-	account = BANK_ACCOUNTS.get(doc.bank_account)
-	if not account:
-		frappe.throw(_("Choose the bank account used by the statement."))
+	account = get_payment_account(doc.bank_account)
 	created = skipped = 0
 	errors = []
 	for row in doc.transactions:
@@ -127,7 +142,7 @@ def create_repayments(doc):
 			skipped += 1
 			continue
 		try:
-			repayment = frappe.get_doc({"doctype": "Loan Repayment", "against_loan": loan, "company": doc.company or DEFAULT_COMPANY, "posting_date": row.transaction_date, "amount_paid": row.amount, "cost_center": "HQ - CHFPL", "repayment_type": "Normal Repayment", "payment_account": account})
+			repayment = frappe.get_doc({"doctype": "Loan Repayment", "against_loan": loan, "company": doc.company or DEFAULT_COMPANY, "posting_date": row.transaction_date, "value_date": row.transaction_date, "amount_paid": row.amount, "cost_center": "HQ - CHFPL", "repayment_type": "Normal Repayment", "payment_account": account})
 			repayment.insert(ignore_permissions=True)
 			repayment.submit()
 			row.update({"loan": loan, "loan_repayment": repayment.name, "status": "Loan Repayment Created"})
