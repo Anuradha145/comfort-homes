@@ -55,21 +55,15 @@ def parse_bsp_date(value):
 
 
 def get_payment_account(bank_account):
-	"""Use the Account selected on the reconciliation, including old imports."""
-	if frappe.db.exists("Account", bank_account):
-		return bank_account
-
-	# Reconciliations created before v16.0.2 stored a display label rather than
-	# the Account document name. Resolve it only when there is one clear match.
-	matches = frappe.get_all(
-		"Account",
-		filters={"name": ["like", f"%{bank_account}%"], "is_group": 0},
-		pluck="name",
-		limit_page_length=2,
+	"""Return the ledger Account linked to the selected ERPNext Bank Account."""
+	bank_details = frappe.db.get_value(
+		"Bank Account", bank_account, ["account", "disabled", "is_company_account"], as_dict=True
 	)
-	if len(matches) == 1:
-		return matches[0]
-	frappe.throw(_("Select a valid ledger Account in Bank Account before creating repayments."))
+	if not bank_details or bank_details.disabled:
+		frappe.throw(_("Select an active Bank Account before creating repayments."))
+	if not bank_details.is_company_account or not bank_details.account:
+		frappe.throw(_("The selected Bank Account must be a company bank account with a linked ledger Account."))
+	return bank_details.account
 
 
 @frappe.whitelist()
