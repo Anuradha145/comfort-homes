@@ -36,6 +36,18 @@ function import_statement_dialog(frm, analysis) {
 
 frappe.ui.form.on("Loan Bank Reconciliation", {
 	refresh(frm) {
+		frm.set_query("loan", "transactions", (_doc, cdt, cdn) => {
+			const row = locals[cdt][cdn];
+			return {
+				filters: {
+					applicant: row.customer || "",
+					applicant_type: "Customer",
+					status: "Disbursed",
+					docstatus: 1,
+				},
+			};
+		});
+
 		if (frm.is_new()) return;
 		frm.add_custom_button("Import bank statement", () => {
 			if (!frm.doc.statement_file) {
