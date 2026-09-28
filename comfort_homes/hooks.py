@@ -12,6 +12,14 @@ required_apps = ["frappe", "erpnext", "lending"]
 
 fixtures = [
 	{
+		"dt": "Custom Field",
+		"filters": [["name", "in", ["Loan-custom_mode_of_payment"]]],
+	},
+	{
+		"dt": "Property Setter",
+		"filters": [["name", "in", ["Loan Application-custom_flexi_payment_period-options"]]],
+	},
+	{
 		"dt": "DocType",
 		"filters": [["name", "in", ["Loan Bank Reconciliation", "Loan Bank Reconciliation Item"]]],
 	},
@@ -20,6 +28,11 @@ fixtures = [
 		"filters": [["name", "=", "Flexi Loan Bank Reconciliation"]],
 	},
 ]
+
+doc_events = {
+	"Loan": {"before_validate": "comfort_homes.loan_mapping.apply_loan_application_values"},
+	"Loan Disbursement": {"before_validate": "comfort_homes.loan_mapping.apply_loan_values_to_disbursement"},
+}
 
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [
