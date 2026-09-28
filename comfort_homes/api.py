@@ -194,6 +194,14 @@ def create_repayments(doc, row_names=None):
 		if row.status != "Ready" or not loan:
 			row.status = "Choose Loan"; skipped += 1
 			continue
+		if not row.customer:
+			row.update({"loan": None, "selected": 0, "status": "Unmatched"})
+			skipped += 1
+			continue
+		if frappe.db.get_value("Loan", loan, "applicant") != row.customer:
+			row.update({"loan": None, "selected": 0, "status": "Choose Loan"})
+			skipped += 1
+			continue
 		try:
 			repayment = frappe.get_doc({"doctype": "Loan Repayment", "against_loan": loan, "company": doc.company or DEFAULT_COMPANY, "posting_date": row.transaction_date, "value_date": row.transaction_date, "amount_paid": row.amount, "cost_center": "HQ - CHFPL", "repayment_type": "Normal Repayment", "payment_account": account})
 			repayment.insert(ignore_permissions=True); repayment.submit()

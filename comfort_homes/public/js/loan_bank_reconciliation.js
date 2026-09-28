@@ -38,9 +38,13 @@ frappe.ui.form.on("Loan Bank Reconciliation", {
 	refresh(frm) {
 		frm.set_query("loan", "transactions", (_doc, cdt, cdn) => {
 			const row = locals[cdt][cdn];
+			if (!row.customer) {
+				// An unknown payer must be matched to a customer first.
+				return { filters: { name: "__no_customer_matched__" } };
+			}
 			return {
 				filters: {
-					applicant: row.customer || "",
+					applicant: row.customer,
 					applicant_type: "Customer",
 					status: "Disbursed",
 					docstatus: 1,
