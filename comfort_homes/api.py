@@ -140,14 +140,14 @@ def _payment_account(bank_account):
 
 
 @frappe.whitelist()
-def loan_reconciliation(name, action, mapping=None):
+def loan_reconciliation(name, action, mapping=None, row_names=None):
 	doc = frappe.get_doc("Loan Bank Reconciliation", name)
 	if doc.docstatus:
 		frappe.throw(_("Only a draft reconciliation can be changed."))
 	if action == "import_statement":
 		return import_statement(doc, frappe.parse_json(mapping) if mapping else None)
 	if action == "create_repayments":
-		return create_repayments(doc)
+		return create_repayments(doc, frappe.parse_json(row_names) if row_names else None)
 	frappe.throw(_("A valid reconciliation action is required."))
 
 
@@ -180,15 +180,18 @@ def import_statement(doc, mapping):
 	return {"imported": imported, "ready": ready, "review": review, "format": filename}
 
 
-def create_repayments(doc):
+def create_repayments(doc, row_names=None):
 	account = _payment_account(doc.bank_account)
 	created = skipped = 0
 	errors = []
+	explicit_rows = set(row_names or [])
 	for row in doc.transactions:
-		if not row.selected or row.loan_repayment:
+		# Ticked grid rows take precedence. Without ticks, retain bulk creation
+		# for every automatically-ready row.
+		if row.loan_repayment or (explicit_rows and row.name not in explicit_rows) or (not explicit_rows and not row.selected):
 			continue
 		loan = row.loan or row.suggested_loan
-		if not loan:
+		if row.status != "Ready" or not loan:
 			row.status = "Choose Loan"; skipped += 1
 			continue
 		try:

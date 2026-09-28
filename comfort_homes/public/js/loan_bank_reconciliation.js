@@ -67,11 +67,15 @@ frappe.ui.form.on("Loan Bank Reconciliation", {
 
 		if (frm.doc.transactions && frm.doc.transactions.length) {
 			frm.add_custom_button("Create Loan Repayments", () => {
+				const row_names = (frm.get_selected().transactions || []).map((row) => row.name);
+				const scope = row_names.length
+					? `Create repayments for the ${row_names.length} ticked row(s) that are ready?`
+					: "No rows are ticked. Create repayments for every ready row?";
 				frappe.confirm(
-					"Create repayments for every selected row with a Loan to Repay? Rows without a selected loan remain for review.",
+					scope,
 					() => frappe.call({
 						method: "comfort_homes.api.loan_reconciliation",
-						args: { name: frm.doc.name, action: "create_repayments" },
+						args: { name: frm.doc.name, action: "create_repayments", row_names },
 						freeze: true,
 						freeze_message: "Creating loan repayments…",
 						callback(r) {
