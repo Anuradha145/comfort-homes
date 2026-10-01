@@ -25,7 +25,20 @@ fixtures = [
 	},
 	{
 		"dt": "Client Script",
-		"filters": [["name", "=", "Flexi Loan Bank Reconciliation"]],
+		"filters": [["name", "in", ["Flexi Loan Bank Reconciliation", "Flexi Customer Document Signing Order"]]],
+	},
+	{
+		"dt": "Server Script",
+		"filters": [["name", "in", [
+			"Flexi Default Customer Agreements",
+			"FLEXI DOCUMENT SYNC",
+			"FLEXI DOCUMENT CUSTOMER SIGN",
+			"FLEXI DOCUMENT DIRECTOR SIGN",
+		]]],
+	},
+	{
+		"dt": "Loan Document Template",
+		"filters": [["document_code", "=", "REQ"]],
 	},
 ]
 

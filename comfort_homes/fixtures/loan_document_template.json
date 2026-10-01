@@ -1,0 +1,23 @@
+[
+ {
+  "description": "Required Documents",
+  "docstatus": 0,
+  "doctype": "Loan Document Template",
+  "document_code": "REQ",
+  "document_name": "Requirement Documents",
+  "effective_from": null,
+  "html_template": null,
+  "modified": "2026-10-01 15:01:41.700139",
+  "name": "LDT-00007",
+  "print_format": null,
+  "requires_acknowledgement": 0,
+  "requires_customer_read": 0,
+  "requires_director_signature": 0,
+  "requires_signature": 0,
+  "sequence": 1,
+  "status": "Withdrawn",
+  "template_file": null,
+  "template_type": "Uploaded PDF",
+  "version": 1
+ }
+]
