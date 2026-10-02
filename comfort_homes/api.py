@@ -213,6 +213,41 @@ def _payment_account(bank_account):
 	return bank.account
 
 
+def _customer_with_email(email):
+	"""Find a customer by its own or its primary-contact email address."""
+	if not email:
+		return ""
+	if frappe.db.has_column("Customer", "email_id"):
+		customers = frappe.get_all("Customer", filters={"email_id": email}, fields=["name"], limit_page_length=1)
+		if customers:
+			return customers[0].name
+	contacts = frappe.get_all("Contact", filters={"email_id": email}, fields=["name"], limit_page_length=20)
+	for contact in contacts:
+		link = frappe.get_all(
+			"Dynamic Link",
+			filters={"parent": contact.name, "link_doctype": "Customer"},
+			fields=["link_name"],
+			limit_page_length=1,
+		)
+		if link:
+			return link[0].link_name
+	return ""
+
+
+@frappe.whitelist(allow_guest=True)
+def check_existing_customer(tin_number=None, email=None):
+	"""Public Web Form pre-check; never exposes the matched customer's details."""
+	tin_number = str(tin_number or "").strip()
+	email = str(email or "").strip().lower()
+	matched_by = []
+	if tin_number and frappe.db.has_column("Customer", "custom_tin_number"):
+		if frappe.db.exists("Customer", {"custom_tin_number": tin_number}):
+			matched_by.append("TIN Number")
+	if email and _customer_with_email(email):
+		matched_by.append("Email Address")
+	return {"exists": bool(matched_by), "matched_by": matched_by}
+
+
 @frappe.whitelist()
 def loan_reconciliation(name, action, mapping=None, row_names=None):
 	doc = frappe.get_doc("Loan Bank Reconciliation", name)

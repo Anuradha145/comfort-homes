@@ -5,6 +5,8 @@ app_description = "Comfort Homes lending customisations"
 app_email = "support@comforthomefurnishing.com"
 app_license = "mit"
 
+web_include_js = "/assets/comfort_homes/js/loan_application_duplicate_check.js"
+
 # Apps
 # ------------------
 
