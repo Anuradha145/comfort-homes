@@ -11,6 +11,7 @@ from frappe import _
 
 DEFAULT_COMPANY = "Comfort Home Furnishing PTE Limited"
 CARD_PREFIXES = ("GRA", "NAM", "LTK", "NAU", "DEN", "NOU", "SC")
+LOAN_APPLICATION_PATTERN = re.compile(r"\bACC-LOAP-\d{4}-\d+\b", re.IGNORECASE)
 ALIASES = {
 	"date": ("value date", "effective date", "transaction date", "date", "posted date"),
 	"description": ("transaction description", "description", "operation", "narration", "details"),
@@ -115,19 +116,77 @@ def extract_card_id(description):
 	return ""
 
 
-def _customer_and_loan(card_id):
-	# Card ID is optional customization on Customer. Some sites do not have the
-	# field yet, in which case the imported transaction remains available for
-	# manual customer and loan selection rather than failing the whole import.
-	customers = (
-		frappe.get_all("Customer", filters={"custom_card_id": card_id}, fields=["name"], limit_page_length=1)
-		if card_id and frappe.db.has_column("Customer", "custom_card_id")
-		else []
+def _normalise_name(value):
+	return re.sub(r"[^A-Z0-9]+", " ", str(value or "").upper()).strip()
+
+
+def _customer_name_from_description(description):
+	"""Return a customer only where the transfer-name match is unambiguous."""
+	text = re.split(r"\bFROM\b", str(description or ""), flags=re.IGNORECASE)[-1]
+	name = _normalise_name(re.sub(r"\b\d{5,}\b", "", text))
+	words = [word for word in name.split() if word not in {"DIRECT", "TRANSFER", "FUND", "SCH"}]
+	if len(words) < 2:
+		return ""
+
+	# Search by the most specific name word first, then require an exact
+	# normalised full-name match. This avoids assigning repayments by a loose
+	# partial name match.
+	candidates = frappe.get_all(
+		"Customer",
+		filters={"disabled": 0, "customer_name": ["like", f"%{words[-1]}%"]},
+		fields=["name", "customer_name"],
+		limit_page_length=100,
 	)
-	if not customers:
+	matches = [row.name for row in candidates if _normalise_name(row.customer_name) == " ".join(words)]
+	return matches[0] if len(matches) == 1 else ""
+
+
+def _loan_matches(customer):
+	filters = {"applicant": customer, "status": "Disbursed"}
+	if frappe.db.has_column("Loan", "applicant_type"):
+		filters["applicant_type"] = "Customer"
+	return frappe.get_all(
+		"Loan",
+		filters=filters,
+		fields=["name"],
+		order_by="disbursement_date desc, modified desc",
+		limit_page_length=20,
+	)
+
+
+def _customer_and_loan(description, card_id):
+	# Prefer an explicit application reference: it is the most reliable bank
+	# narration identifier and avoids any customer-name ambiguity.
+	application_reference = next(iter(LOAN_APPLICATION_PATTERN.findall(description or "")), "")
+	if application_reference and frappe.db.has_column("Loan", "loan_application"):
+		loans = frappe.get_all(
+			"Loan",
+			filters={"loan_application": application_reference, "status": "Disbursed"},
+			fields=["name", "applicant"],
+			limit_page_length=2,
+		)
+		if len(loans) == 1:
+			return loans[0].applicant, loans[0].name, 1
+
+	# A statement can contain a customer Card ID or, as in BSP statements, the
+	# customer's TIN. Both fields are optional site customizations.
+	identifiers = list(dict.fromkeys([card_id] + re.findall(r"\b\d{5,}\b", description or "")))
+	for fieldname in ("custom_card_id", "custom_tin_number"):
+		if not frappe.db.has_column("Customer", fieldname):
+			continue
+		for identifier in identifiers:
+			if not identifier:
+				continue
+			customers = frappe.get_all("Customer", filters={fieldname: identifier}, fields=["name"], limit_page_length=2)
+			if len(customers) == 1:
+				customer = customers[0].name
+				loans = _loan_matches(customer)
+				return customer, loans[0].name if len(loans) == 1 else "", len(loans)
+
+	customer = _customer_name_from_description(description)
+	if not customer:
 		return "", "", 0
-	customer = customers[0].name
-	loans = frappe.get_all("Loan", filters={"applicant": ["like", f"%{customer}%"], "status": "Disbursed"}, fields=["name"], order_by="disbursement_date desc, modified desc", limit_page_length=20)
+	loans = _loan_matches(customer)
 	return customer, loans[0].name if len(loans) == 1 else "", len(loans)
 
 
@@ -177,7 +236,7 @@ def import_statement(doc, mapping):
 			if not transaction_date or not description or amount <= 0:
 				continue
 			card_id = extract_card_id(description)
-			customer, loan, count = _customer_and_loan(card_id)
+			customer, loan, count = _customer_and_loan(description, card_id)
 			status = "Ready" if loan else "Choose Loan" if customer and count > 1 else "No Disbursed Loan" if customer else "Unmatched"
 			ready += int(bool(loan)); review += int(not loan)
 			doc.append("transactions", {"transaction_date": transaction_date, "description": description, "amount": amount, "customer_card_id": card_id, "customer": customer, "suggested_loan": loan, "loan": loan, "selected": int(bool(loan)), "status": status})
