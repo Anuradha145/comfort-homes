@@ -289,6 +289,21 @@ def import_statement(doc, mapping):
 	return {"imported": imported, "ready": ready, "review": review, "format": filename}
 
 
+def _cost_center_for_loan(loan):
+	"""Use the loan's own dimension, with its latest submitted disbursement as fallback."""
+	cost_center = frappe.db.get_value("Loan", loan, "cost_center")
+	if cost_center:
+		return cost_center
+	disbursements = frappe.get_all(
+		"Loan Disbursement",
+		filters={"against_loan": loan, "docstatus": 1},
+		fields=["cost_center"],
+		order_by="disbursement_date desc, modified desc",
+		limit_page_length=1,
+	)
+	return disbursements[0].cost_center if disbursements else ""
+
+
 def create_repayments(doc, row_names=None):
 	account = _payment_account(doc.bank_account)
 	created = skipped = 0
@@ -312,7 +327,19 @@ def create_repayments(doc, row_names=None):
 			skipped += 1
 			continue
 		try:
-			repayment = frappe.get_doc({"doctype": "Loan Repayment", "against_loan": loan, "company": doc.company or DEFAULT_COMPANY, "posting_date": row.transaction_date, "value_date": row.transaction_date, "amount_paid": row.amount, "cost_center": "HQ - CHFPL", "repayment_type": "Normal Repayment", "payment_account": account})
+			values = {
+				"doctype": "Loan Repayment",
+				"against_loan": loan,
+				"company": doc.company or DEFAULT_COMPANY,
+				"posting_date": row.transaction_date,
+				"value_date": row.transaction_date,
+				"amount_paid": row.amount,
+				"repayment_type": "Normal Repayment",
+				"payment_account": account,
+			}
+			if cost_center := _cost_center_for_loan(loan):
+				values["cost_center"] = cost_center
+			repayment = frappe.get_doc(values)
 			repayment.insert(ignore_permissions=True); repayment.submit()
 			row.update({"loan": loan, "loan_repayment": repayment.name, "status": "Loan Repayment Created"}); created += 1
 		except Exception as error:
