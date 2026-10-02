@@ -171,6 +171,7 @@ def _customer_and_loan(description, card_id):
 	# A statement can contain a customer Card ID or, as in BSP statements, the
 	# customer's TIN. Both fields are optional site customizations.
 	identifiers = list(dict.fromkeys([card_id] + re.findall(r"\b\d{5,}\b", description or "")))
+	matched_customers = set()
 	for fieldname in ("custom_card_id", "custom_tin_number"):
 		if not frappe.db.has_column("Customer", fieldname):
 			continue
@@ -179,9 +180,16 @@ def _customer_and_loan(description, card_id):
 				continue
 			customers = frappe.get_all("Customer", filters={fieldname: identifier}, fields=["name"], limit_page_length=2)
 			if len(customers) == 1:
-				customer = customers[0].name
-				loans = _loan_matches(customer)
-				return customer, loans[0].name if len(loans) == 1 else "", len(loans)
+				matched_customers.add(customers[0].name)
+
+	# Two identifiers may appear in either order, for example a bank reference
+	# and a TIN. Only use the exact-ID result when it identifies one customer.
+	if len(matched_customers) == 1:
+		customer = next(iter(matched_customers))
+		loans = _loan_matches(customer)
+		return customer, loans[0].name if len(loans) == 1 else "", len(loans)
+	if len(matched_customers) > 1:
+		return "", "", 0
 
 	customer = _customer_name_from_description(description)
 	if not customer:
