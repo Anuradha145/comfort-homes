@@ -116,7 +116,14 @@ def extract_card_id(description):
 
 
 def _customer_and_loan(card_id):
-	customers = frappe.get_all("Customer", filters={"custom_card_id": card_id}, fields=["name"], limit_page_length=1) if card_id else []
+	# Card ID is optional customization on Customer. Some sites do not have the
+	# field yet, in which case the imported transaction remains available for
+	# manual customer and loan selection rather than failing the whole import.
+	customers = (
+		frappe.get_all("Customer", filters={"custom_card_id": card_id}, fields=["name"], limit_page_length=1)
+		if card_id and frappe.db.has_column("Customer", "custom_card_id")
+		else []
+	)
 	if not customers:
 		return "", "", 0
 	customer = customers[0].name
