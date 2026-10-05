@@ -4,6 +4,7 @@
 	let submissionApproved = false;
 	let checkingDuplicate = false;
 	let duplicateFound = false;
+	let fieldChecksBound = false;
 
 	function checkExistingCustomer(showMessage) {
 		if (!isLoanApplicationWebForm()) return Promise.resolve(false);
@@ -71,14 +72,31 @@
 		}, true);
 	}
 
-	if (window.frappe?.web_form?.events) {
+	function bindFieldChecks() {
+		if (!isLoanApplicationWebForm() || fieldChecksBound) return;
+		fieldChecksBound = true;
+		["custom_tin_number", "applicant_email_address"].forEach((fieldname) => {
+			frappe.web_form.on(fieldname, () => checkExistingCustomer(true));
+		});
+	}
+
+	function initialiseWhenReady() {
+		if (!window.location.pathname.replace(/\/$/, "").endsWith("/loan-application")) return;
+		if (!window.frappe?.web_form?.events) {
+			window.setTimeout(initialiseWhenReady, 150);
+			return;
+		}
 		frappe.web_form.events.on("after_load", () => {
 			bindDuplicateCheck();
-			["custom_tin_number", "applicant_email_address"].forEach((fieldname) => {
-				frappe.web_form.on(fieldname, () => checkExistingCustomer(true));
-			});
+			bindFieldChecks();
 		});
-	} else {
-		document.addEventListener("DOMContentLoaded", bindDuplicateCheck);
+		// If this asset is injected after the Web Form has already loaded,
+		// attach immediately as well.
+		window.setTimeout(() => {
+			bindDuplicateCheck();
+			bindFieldChecks();
+		}, 300);
 	}
+
+	initialiseWhenReady();
 })();

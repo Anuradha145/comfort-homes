@@ -237,6 +237,11 @@ def _customer_with_email(email):
 @frappe.whitelist(allow_guest=True)
 def check_existing_customer(tin_number=None, email=None):
 	"""Public Web Form pre-check; never exposes the matched customer's details."""
+	return _existing_customer_match(tin_number, email)
+
+
+def _existing_customer_match(tin_number=None, email=None):
+	"""Return only whether supplied identity values are already held by a customer."""
 	tin_number = str(tin_number or "").strip()
 	email = str(email or "").strip().lower()
 	matched_by = []

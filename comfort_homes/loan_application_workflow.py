@@ -4,9 +4,23 @@ import frappe
 from frappe import _
 from frappe.utils import flt
 
+from comfort_homes.api import _existing_customer_match
+
 
 CONTRACT_STATES = {"Contract Signing", "Awaiting Customer Signature"}
 POST_CONTRACT_STATES = {"Ready for Disbursement", "Signed Contract Pending Compliance"}
+
+
+def validate_public_application_not_existing_customer(doc, method=None):
+	"""Public applications must not create a duplicate customer application."""
+	if not frappe.flags.in_web_form:
+		return
+	match = _existing_customer_match(doc.get("custom_tin_number"), doc.get("applicant_email_address"))
+	if match["exists"]:
+		frappe.throw(
+			_("A customer with this TIN Number or Email Address already exists. Please add the loan application from the backend."),
+			title=_("Existing Customer"),
+		)
 
 
 def validate_deposit_invoice(doc, method=None):

@@ -48,7 +48,10 @@ fixtures = [
 doc_events = {
 	"Loan": {"before_validate": "comfort_homes.loan_mapping.apply_loan_application_values"},
 	"Loan Disbursement": {"before_validate": "comfort_homes.loan_mapping.apply_loan_values_to_disbursement"},
-	"Loan Application": {"before_validate": "comfort_homes.loan_application_workflow.validate_deposit_invoice"},
+	"Loan Application": {
+		"before_insert": "comfort_homes.loan_application_workflow.validate_public_application_not_existing_customer",
+		"before_validate": "comfort_homes.loan_application_workflow.validate_deposit_invoice",
+	},
 }
 
 # Each item in the list will be shown as an app in the apps page

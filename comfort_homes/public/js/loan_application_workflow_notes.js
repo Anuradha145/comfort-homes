@@ -1,4 +1,4 @@
-/* Require a note for every Loan Application workflow action and log it after success. */
+/* Offer an optional note for each Loan Application workflow action and log it after success. */
 frappe.ui.form.on("Loan Application", {
 	before_workflow_action(frm) {
 		const action = frm.selected_workflow_action;
@@ -7,11 +7,10 @@ frappe.ui.form.on("Loan Application", {
 			frappe.dom.unfreeze();
 			const dialog = new frappe.ui.Dialog({
 				title: __("Workflow Note"),
-				fields: [{ fieldname: "note", fieldtype: "Small Text", label: __("Notes"), reqd: 1 }],
+				fields: [{ fieldname: "note", fieldtype: "Small Text", label: __("Notes (optional)") }],
 				primary_action_label: __("Continue"),
 				primary_action(values) {
 					const note = String(values.note || "").trim();
-					if (!note) return;
 					frm.__comfort_workflow_note = { action, fromState, note };
 					dialog.hide();
 					resolve();
@@ -26,7 +25,7 @@ frappe.ui.form.on("Loan Application", {
 	after_workflow_action(frm) {
 		const entry = frm.__comfort_workflow_note;
 		delete frm.__comfort_workflow_note;
-		if (!entry) return;
+		if (!entry || !entry.note) return;
 		frappe.call({
 			method: "comfort_homes.api.log_loan_application_workflow_note",
 			args: { docname: frm.doc.name, action: entry.action, from_state: entry.fromState, to_state: frm.doc.workflow_state || "", note: entry.note },
