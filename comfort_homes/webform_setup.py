@@ -19,7 +19,9 @@ def inject_loan_application_duplicate_check():
 	# Everything after our marker is app-owned. Replacing that section makes
 	# subsequent app updates take effect without touching the user's form logic.
 	user_script = current_script.split(MARKER, 1)[0].rstrip()
-	updated_script = "\n\n".join([user_script, managed_script])
+	# Keep this guard first: the existing form has a substantial client script,
+	# and an error in it must never stop the duplicate protection from binding.
+	updated_script = "\n\n".join([managed_script, user_script])
 	if updated_script == current_script:
 		return
 	web_form.client_script = updated_script

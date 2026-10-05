@@ -6,6 +6,7 @@
 	let duplicateFound = false;
 	let fieldChecksBound = false;
 	let fieldInputChecksBound = false;
+	let documentInputChecksBound = false;
 	let lookupTimer;
 
 	function valueFromInput(fieldname) {
@@ -109,6 +110,24 @@
 		});
 	}
 
+	function bindDocumentInputChecks() {
+		if (documentInputChecksBound) return;
+		documentInputChecksBound = true;
+		const changed = (event) => {
+			const fieldname = event.target?.closest?.("[data-fieldname]")?.dataset?.fieldname;
+			if (!["custom_tin_number", "applicant_email_address"].includes(fieldname)) return;
+			window.clearTimeout(lookupTimer);
+			if (event.type === "change" || event.type === "blur") {
+				checkExistingCustomer(true);
+			} else {
+				lookupTimer = window.setTimeout(() => checkExistingCustomer(true), 500);
+			}
+		};
+		// Capturing listeners work even if another Web Form script fails later.
+		document.addEventListener("input", changed, true);
+		document.addEventListener("change", changed, true);
+	}
+
 	function initialiseWhenReady() {
 		if (!window.location.pathname.replace(/\/$/, "").endsWith("/loan-application")) return;
 		if (!window.frappe?.web_form?.events) {
@@ -130,4 +149,5 @@
 	}
 
 	initialiseWhenReady();
+	bindDocumentInputChecks();
 })();
