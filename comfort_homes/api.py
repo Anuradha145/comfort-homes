@@ -7,6 +7,7 @@ from io import BytesIO, StringIO
 
 import frappe
 from frappe import _
+from frappe.utils import flt, today
 
 
 DEFAULT_COMPANY = "Comfort Home Furnishing PTE Limited"
@@ -279,6 +280,52 @@ def log_loan_application_workflow_note(docname, action, from_state, to_state, no
 		}
 	).insert(ignore_permissions=True)
 	return {"ok": True}
+
+
+@frappe.whitelist()
+def create_deposit_sales_invoice(loan_application):
+	"""Create or reopen the draft invoice for a Loan Application's deposit."""
+	application = frappe.get_doc("Loan Application", loan_application)
+	if not frappe.has_permission(application.doctype, "write", doc=application):
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+	deposit = flt(application.get("custom_flexi_deposit_amount"))
+	if deposit <= 0:
+		frappe.throw(_("Enter a Loan Deposit Amount before creating its Sales Invoice."))
+	loans = frappe.get_all(
+		"Loan", filters={"loan_application": application.name}, fields=["name", "applicant", "cost_center"], limit_page_length=2
+	)
+	if len(loans) != 1:
+		frappe.throw(_("Create the Loan from this application before creating the deposit invoice."))
+	loan = loans[0]
+	existing = frappe.get_all(
+		"Sales Invoice", filters={"loan": loan.name, "docstatus": ["<", 2]}, fields=["name"], order_by="modified desc", limit_page_length=20
+	)
+	if existing:
+		deposit_lines = frappe.get_all(
+			"Sales Invoice Item",
+			filters={"parent": ["in", [row.name for row in existing]], "item_code": "Loan Deposit"},
+			fields=["parent"],
+			limit_page_length=1,
+		)
+		if deposit_lines:
+			application.db_set("custom_deposit_sales_invoice", deposit_lines[0].parent, update_modified=False)
+			return {"name": deposit_lines[0].parent, "existing": True}
+
+	invoice = frappe.get_doc(
+		{
+			"doctype": "Sales Invoice",
+			"company": application.company,
+			"customer": loan.applicant,
+			"posting_date": today(),
+			"due_date": today(),
+			"loan": loan.name,
+			"cost_center": loan.cost_center,
+			"items": [{"item_code": "Loan Deposit", "qty": 1, "rate": deposit, "cost_center": loan.cost_center}],
+		}
+	)
+	invoice.insert()
+	application.db_set("custom_deposit_sales_invoice", invoice.name, update_modified=False)
+	return {"name": invoice.name, "existing": False}
 
 
 @frappe.whitelist()

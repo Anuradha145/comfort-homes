@@ -1,5 +1,21 @@
 /* Offer an optional note for each Loan Application workflow action and log it after success. */
 frappe.ui.form.on("Loan Application", {
+	refresh(frm) {
+		if (frm.is_new() || Number(frm.doc.custom_flexi_deposit_amount || 0) <= 0) return;
+		frm.add_custom_button(__("Create Deposit Sales Invoice"), () => {
+			frappe.call({
+				method: "comfort_homes.api.create_deposit_sales_invoice",
+				args: { loan_application: frm.doc.name },
+				freeze: true,
+				freeze_message: __("Creating draft deposit invoice..."),
+				callback(response) {
+					const invoice = response.message;
+					if (!invoice) return;
+					frappe.set_route("Form", "Sales Invoice", invoice.name);
+				},
+			});
+		}, __("Create"));
+	},
 	before_workflow_action(frm) {
 		const action = frm.selected_workflow_action;
 		const fromState = frm.doc.workflow_state || "";

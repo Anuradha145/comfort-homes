@@ -5,7 +5,7 @@ app_description = "Comfort Homes lending customisations"
 app_email = "support@comforthomefurnishing.com"
 app_license = "mit"
 
-web_include_js = "/assets/comfort_homes/js/loan_application_duplicate_check.js"
+webform_include_js = {"Loan Application": "public/js/loan_application_duplicate_check.js"}
 doctype_js = {"Loan Application": "public/js/loan_application_workflow_notes.js"}
 
 # Apps
