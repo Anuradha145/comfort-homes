@@ -5,6 +5,8 @@
 	let checkingDuplicate = false;
 	let duplicateFound = false;
 	let fieldChecksBound = false;
+	let fieldInputChecksBound = false;
+	let lookupTimer;
 
 	function checkExistingCustomer(showMessage) {
 		if (!isLoanApplicationWebForm()) return Promise.resolve(false);
@@ -80,6 +82,28 @@
 		});
 	}
 
+	function bindImmediateInputChecks() {
+		if (!isLoanApplicationWebForm() || fieldInputChecksBound) return;
+		const inputs = ["custom_tin_number", "applicant_email_address"]
+			.map((fieldname) => frappe.web_form.fields_dict[fieldname]?.wrapper?.querySelector("input"))
+			.filter(Boolean);
+		if (inputs.length !== 2) {
+			window.setTimeout(bindImmediateInputChecks, 150);
+			return;
+		}
+		fieldInputChecksBound = true;
+		inputs.forEach((input) => {
+			input.addEventListener("input", () => {
+				window.clearTimeout(lookupTimer);
+				lookupTimer = window.setTimeout(() => checkExistingCustomer(true), 500);
+			});
+			input.addEventListener("blur", () => {
+				window.clearTimeout(lookupTimer);
+				checkExistingCustomer(true);
+			});
+		});
+	}
+
 	function initialiseWhenReady() {
 		if (!window.location.pathname.replace(/\/$/, "").endsWith("/loan-application")) return;
 		if (!window.frappe?.web_form?.events) {
@@ -89,12 +113,14 @@
 		frappe.web_form.events.on("after_load", () => {
 			bindDuplicateCheck();
 			bindFieldChecks();
+			bindImmediateInputChecks();
 		});
 		// If this asset is injected after the Web Form has already loaded,
 		// attach immediately as well.
 		window.setTimeout(() => {
 			bindDuplicateCheck();
 			bindFieldChecks();
+			bindImmediateInputChecks();
 		}, 300);
 	}
 
