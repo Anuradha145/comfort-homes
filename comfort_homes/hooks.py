@@ -7,6 +7,7 @@ app_license = "mit"
 
 webform_include_js = {"Loan Application": "public/js/loan_application_duplicate_check.js"}
 doctype_js = {"Loan Application": "public/js/loan_application_workflow_notes.js"}
+after_migrate = ["comfort_homes.webform_setup.inject_loan_application_duplicate_check"]
 
 # Apps
 # ------------------
