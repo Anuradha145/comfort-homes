@@ -6,6 +6,7 @@ app_email = "support@comforthomefurnishing.com"
 app_license = "mit"
 
 web_include_js = "/assets/comfort_homes/js/loan_application_duplicate_check.js"
+doctype_js = {"Loan Application": "public/js/loan_application_workflow_notes.js"}
 
 # Apps
 # ------------------
@@ -15,7 +16,7 @@ required_apps = ["frappe", "erpnext", "lending"]
 fixtures = [
 	{
 		"dt": "Custom Field",
-		"filters": [["name", "in", ["Loan-custom_mode_of_payment"]]],
+		"filters": [["name", "in", ["Loan-custom_mode_of_payment", "Loan Application-custom_deposit_sales_invoice"]]],
 	},
 	{
 		"dt": "Property Setter",
@@ -47,6 +48,7 @@ fixtures = [
 doc_events = {
 	"Loan": {"before_validate": "comfort_homes.loan_mapping.apply_loan_application_values"},
 	"Loan Disbursement": {"before_validate": "comfort_homes.loan_mapping.apply_loan_values_to_disbursement"},
+	"Loan Application": {"before_validate": "comfort_homes.loan_application_workflow.validate_deposit_invoice"},
 }
 
 # Each item in the list will be shown as an app in the apps page

@@ -249,6 +249,34 @@ def check_existing_customer(tin_number=None, email=None):
 
 
 @frappe.whitelist()
+def log_loan_application_workflow_note(docname, action, from_state, to_state, note):
+	"""Record an immutable workflow note in the Loan Application activity timeline."""
+	doc = frappe.get_doc("Loan Application", docname)
+	if not frappe.has_permission(doc.doctype, "write", doc=doc):
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+	note = str(note or "").strip()
+	if not note:
+		frappe.throw(_("A workflow note is required."))
+	content = "<p><b>{0}</b> changed workflow: {1} → {2} ({3})</p><p>{4}</p>".format(
+		frappe.utils.escape_html(frappe.session.user),
+		frappe.utils.escape_html(from_state or ""),
+		frappe.utils.escape_html(to_state or ""),
+		frappe.utils.escape_html(action or ""),
+		frappe.utils.escape_html(note),
+	)
+	frappe.get_doc(
+		{
+			"doctype": "Comment",
+			"comment_type": "Workflow",
+			"reference_doctype": "Loan Application",
+			"reference_name": doc.name,
+			"content": content,
+		}
+	).insert(ignore_permissions=True)
+	return {"ok": True}
+
+
+@frappe.whitelist()
 def loan_reconciliation(name, action, mapping=None, row_names=None):
 	doc = frappe.get_doc("Loan Bank Reconciliation", name)
 	if doc.docstatus:

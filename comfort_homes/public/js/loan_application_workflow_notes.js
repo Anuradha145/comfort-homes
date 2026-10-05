@@ -1,0 +1,36 @@
+/* Require a note for every Loan Application workflow action and log it after success. */
+frappe.ui.form.on("Loan Application", {
+	before_workflow_action(frm) {
+		const action = frm.selected_workflow_action;
+		const fromState = frm.doc.workflow_state || "";
+		return new Promise((resolve, reject) => {
+			frappe.dom.unfreeze();
+			const dialog = new frappe.ui.Dialog({
+				title: __("Workflow Note"),
+				fields: [{ fieldname: "note", fieldtype: "Small Text", label: __("Notes"), reqd: 1 }],
+				primary_action_label: __("Continue"),
+				primary_action(values) {
+					const note = String(values.note || "").trim();
+					if (!note) return;
+					frm.__comfort_workflow_note = { action, fromState, note };
+					dialog.hide();
+					resolve();
+				},
+			});
+			dialog.$wrapper.on("hidden.bs.modal", () => {
+				if (!frm.__comfort_workflow_note) reject(new Error("Workflow action cancelled"));
+			});
+			dialog.show();
+		});
+	},
+	after_workflow_action(frm) {
+		const entry = frm.__comfort_workflow_note;
+		delete frm.__comfort_workflow_note;
+		if (!entry) return;
+		frappe.call({
+			method: "comfort_homes.api.log_loan_application_workflow_note",
+			args: { docname: frm.doc.name, action: entry.action, from_state: entry.fromState, to_state: frm.doc.workflow_state || "", note: entry.note },
+			freeze: false,
+		});
+	},
+});
