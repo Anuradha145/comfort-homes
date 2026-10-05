@@ -36,7 +36,7 @@
 	}
 
 	function isLoanApplicationWebForm() {
-		return window.location.pathname.replace(/\/$/, "") === "/loan-application" && window.frappe?.web_form;
+		return window.location.pathname.replace(/\/$/, "").startsWith("/loan-application") && window.frappe?.web_form;
 	}
 
 	function bindDuplicateCheck() {
@@ -129,7 +129,7 @@
 	}
 
 	function initialiseWhenReady() {
-		if (!window.location.pathname.replace(/\/$/, "").endsWith("/loan-application")) return;
+		if (!window.location.pathname.replace(/\/$/, "").startsWith("/loan-application")) return;
 		if (!window.frappe?.web_form?.events) {
 			window.setTimeout(initialiseWhenReady, 150);
 			return;
