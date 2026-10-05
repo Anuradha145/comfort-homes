@@ -16,7 +16,7 @@ required_apps = ["frappe", "erpnext", "lending"]
 fixtures = [
 	{
 		"dt": "Custom Field",
-		"filters": [["name", "in", ["Loan-custom_mode_of_payment", "Loan Application-custom_deposit_sales_invoice"]]],
+		"filters": [["name", "in", ["Loan-custom_mode_of_payment", "Loan Application-custom_deposit_sales_invoice", "Sales Invoice-custom_loan_application"]]],
 	},
 	{
 		"dt": "Property Setter",

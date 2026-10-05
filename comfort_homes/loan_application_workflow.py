@@ -33,17 +33,12 @@ def validate_deposit_invoice(doc, method=None):
 	if flt(doc.get("custom_flexi_deposit_amount")) <= 0:
 		return
 
-	loans = frappe.get_all("Loan", filters={"loan_application": doc.name}, pluck="name")
-	invoice = (
-		frappe.get_all(
-			"Sales Invoice",
-			filters={"loan": ["in", loans], "docstatus": 1},
-			fields=["name"],
-			order_by="posting_date desc, modified desc",
-			limit_page_length=1,
-		)
-		if loans
-		else []
+	invoice = frappe.get_all(
+		"Sales Invoice",
+		filters={"custom_loan_application": doc.name, "docstatus": 1},
+		fields=["name"],
+		order_by="posting_date desc, modified desc",
+		limit_page_length=1,
 	)
 	if not invoice:
 		frappe.throw(

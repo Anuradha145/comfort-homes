@@ -284,21 +284,17 @@ def log_loan_application_workflow_note(docname, action, from_state, to_state, no
 
 @frappe.whitelist()
 def create_deposit_sales_invoice(loan_application):
-	"""Create or reopen the draft invoice for a Loan Application's deposit."""
+	"""Create or reopen the draft deposit invoice directly from a Loan Application."""
 	application = frappe.get_doc("Loan Application", loan_application)
 	if not frappe.has_permission(application.doctype, "write", doc=application):
 		frappe.throw(_("Not permitted"), frappe.PermissionError)
 	deposit = flt(application.get("custom_flexi_deposit_amount"))
 	if deposit <= 0:
 		frappe.throw(_("Enter a Loan Deposit Amount before creating its Sales Invoice."))
-	loans = frappe.get_all(
-		"Loan", filters={"loan_application": application.name}, fields=["name", "applicant", "cost_center"], limit_page_length=2
-	)
-	if len(loans) != 1:
-		frappe.throw(_("Create the Loan from this application before creating the deposit invoice."))
-	loan = loans[0]
+	if not application.applicant:
+		frappe.throw(_("A Customer is required on the Loan Application before creating the deposit invoice."))
 	existing = frappe.get_all(
-		"Sales Invoice", filters={"loan": loan.name, "docstatus": ["<", 2]}, fields=["name"], order_by="modified desc", limit_page_length=20
+		"Sales Invoice", filters={"custom_loan_application": application.name, "docstatus": ["<", 2]}, fields=["name"], order_by="modified desc", limit_page_length=20
 	)
 	if existing:
 		deposit_lines = frappe.get_all(
@@ -315,12 +311,12 @@ def create_deposit_sales_invoice(loan_application):
 		{
 			"doctype": "Sales Invoice",
 			"company": application.company,
-			"customer": loan.applicant,
+			"customer": application.applicant,
 			"posting_date": today(),
 			"due_date": today(),
-			"loan": loan.name,
-			"cost_center": loan.cost_center,
-			"items": [{"item_code": "Loan Deposit", "qty": 1, "rate": deposit, "cost_center": loan.cost_center}],
+			"custom_loan_application": application.name,
+			"cost_center": application.get("custom_branchlocation"),
+			"items": [{"item_code": "Loan Deposit", "qty": 1, "rate": deposit, "cost_center": application.get("custom_branchlocation")}],
 		}
 	)
 	invoice.insert()
