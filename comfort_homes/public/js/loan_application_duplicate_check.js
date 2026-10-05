@@ -8,13 +8,18 @@
 	let fieldInputChecksBound = false;
 	let lookupTimer;
 
+	function valueFromInput(fieldname) {
+		const input = frappe.web_form.fields_dict[fieldname]?.wrapper?.querySelector("input");
+		return String(input?.value ?? frappe.web_form.get_value(fieldname) ?? "").trim();
+	}
+
 	function checkExistingCustomer(showMessage) {
 		if (!isLoanApplicationWebForm()) return Promise.resolve(false);
 		return frappe.call({
 			method: "comfort_homes.api.check_existing_customer",
 			args: {
-				tin_number: frappe.web_form.get_value("custom_tin_number") || "",
-				email: frappe.web_form.get_value("applicant_email_address") || "",
+				tin_number: valueFromInput("custom_tin_number"),
+				email: valueFromInput("applicant_email_address"),
 			},
 		}).then((response) => {
 			duplicateFound = Boolean((response.message || {}).exists);
