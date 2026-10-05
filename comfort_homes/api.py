@@ -339,6 +339,7 @@ def create_repayments(doc, row_names=None):
 				"value_date": row.transaction_date,
 				"amount_paid": row.amount,
 				"repayment_type": "Normal Repayment",
+				"bank_account": doc.bank_account,
 				"payment_account": account,
 			}
 			if cost_center := _cost_center_for_loan(loan):
