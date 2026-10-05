@@ -315,7 +315,7 @@ def create_repayments(doc, row_names=None):
 		if row.loan_repayment or (explicit_rows and row.name not in explicit_rows) or (not explicit_rows and not row.selected):
 			continue
 		loan = row.loan or row.suggested_loan
-		if row.status != "Ready" or not loan:
+		if not loan:
 			row.status = "Choose Loan"; skipped += 1
 			continue
 		if not row.customer:
@@ -326,6 +326,10 @@ def create_repayments(doc, row_names=None):
 			row.update({"loan": None, "selected": 0, "status": "Choose Loan"})
 			skipped += 1
 			continue
+		# A staff member can manually select a loan for a matched customer. That
+		# valid selection is ready to post even if its earlier import status was
+		# "Choose Loan".
+		row.status = "Ready"
 		try:
 			values = {
 				"doctype": "Loan Repayment",
