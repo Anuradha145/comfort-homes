@@ -66,6 +66,12 @@ fixtures = [
 		"dt": "Loan Document Template",
 		"filters": [["document_code", "=", "REQ"]],
 	},
+	{
+		# The published public application is an app fixture, not a site-only
+		# Web Form.  Fresh sites therefore receive the same five-step form.
+		"dt": "Web Form",
+		"filters": [["name", "=", "loan-application-new"]],
+	},
 ]
 
 doc_events = {
