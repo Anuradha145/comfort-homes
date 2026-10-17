@@ -16,6 +16,13 @@ def validate_public_application_not_existing_customer(doc, method=None):
 	if not frappe.flags.in_web_form:
 		return
 	match = _existing_customer_match(doc.get("custom_tin_number"), doc.get("applicant_email_address"))
+	from comfort_homes.co_applicant import find_by_tin
+
+	if find_by_tin(doc.get("custom_tin_number")):
+		frappe.throw(
+			_("A matching Co-Applicant already exists. Please apply from the backend."),
+			title=_("Existing Co-Applicant"),
+		)
 	if match["exists"]:
 		matched_by = match.get("matched_by") or []
 		identifier = matched_by[0] if len(matched_by) == 1 else _("TIN Number or Email Address")

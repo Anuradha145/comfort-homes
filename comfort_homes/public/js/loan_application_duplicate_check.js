@@ -15,6 +15,9 @@
 	let duplicateMatch = [];
 
 	function duplicateMessage(matchedBy = duplicateMatch) {
+		if (window.__comfortHomesExistingCoApplicant) {
+			return __("A matching Co-Applicant already exists. Please apply from the backend.");
+		}
 		const identifier = matchedBy.length === 1
 			? matchedBy[0]
 			: "TIN Number or Email Address";
@@ -51,6 +54,7 @@
 			if (sequence !== lookupSequence) return duplicateFound;
 			const match = response.message || {};
 			duplicateFound = Boolean(match.exists);
+			window.__comfortHomesExistingCoApplicant = Boolean(match.co_applicant_exists);
 			duplicateMatch = match.matched_by || [];
 			updateProgressAccess();
 			if (duplicateFound && showMessage) {

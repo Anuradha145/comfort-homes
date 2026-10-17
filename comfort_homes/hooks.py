@@ -16,11 +16,15 @@ web_include_js = [
 doctype_js = {
 	"Loan Application": [
 		"public/js/loan_application_branch_filter.js",
+		"public/js/loan_application_co_applicant.js",
 		"public/js/loan_application_workflow_notes.js",
 		"public/js/loan_application_signed_pack.js",
 	]
 }
-after_migrate = ["comfort_homes.webform_setup.inject_loan_application_duplicate_check"]
+after_migrate = [
+	"comfort_homes.webform_setup.inject_loan_application_duplicate_check",
+	"comfort_homes.co_applicant.ensure_loan_application_fields",
+]
 
 # Apps
 # ------------------
@@ -66,9 +70,13 @@ doc_events = {
 	"Loan Application": {
 		"before_insert": "comfort_homes.loan_application_workflow.validate_public_application_not_existing_customer",
 		"before_validate": [
+			"comfort_homes.co_applicant.validate_existing_co_applicant",
 			"comfort_homes.loan_application_workflow.validate_branch_location",
 			"comfort_homes.loan_application_workflow.validate_deposit_invoice",
 		],
+	},
+	"Co-Applicant": {
+		"on_update": "comfort_homes.co_applicant.sync_linked_loan_application",
 	},
 }
 

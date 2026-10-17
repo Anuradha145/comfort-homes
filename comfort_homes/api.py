@@ -237,8 +237,16 @@ def _customer_with_email(email):
 
 @frappe.whitelist(allow_guest=True)
 def check_existing_customer(tin_number=None, email=None):
-	"""Public Web Form pre-check; never exposes the matched customer's details."""
-	return _existing_customer_match(tin_number, email)
+	"""Public Web Form pre-check; never exposes matched personal details."""
+	match = _existing_customer_match(tin_number, email)
+	# This endpoint is guest-accessible. It tells a public applicant only that
+	# staff must handle an existing Co-Applicant; the details remain Desk-only.
+	from comfort_homes.co_applicant import find_by_tin
+
+	co_applicant = find_by_tin(tin_number)
+	match["co_applicant_exists"] = bool(co_applicant)
+	match["exists"] = match["exists"] or bool(co_applicant)
+	return match
 
 
 def _existing_customer_match(tin_number=None, email=None):
