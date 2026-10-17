@@ -7,6 +7,32 @@ import frappe
 
 MARKER = "/* comfort_homes: loan application duplicate customer check */"
 CALCULATION_MARKER = "/* comfort_homes: loan application live calculation refresh v3 */"
+EMPLOYMENT_MARKER = "/* comfort_homes: loan application employment period */"
+EMPLOYMENT_SCRIPT = r'''
+/* comfort_homes: loan application employment period */
+(function () {
+	function updateEmploymentPeriod() {
+		const startDate = frappe.web_form.get_value("custom_flexi_employment_start_date");
+		if (!startDate) {
+			frappe.web_form.set_value("custom_flexi_employment_period", "");
+			return;
+		}
+		const start = new Date(`${startDate}T00:00:00`);
+		const now = new Date();
+		if (Number.isNaN(start.getTime()) || start > now) return;
+		let months = (now.getFullYear() - start.getFullYear()) * 12 + now.getMonth() - start.getMonth();
+		if (now.getDate() < start.getDate()) months -= 1;
+		months = Math.max(months, 0);
+		const years = Math.floor(months / 12);
+		const remainder = months % 12;
+		const period = `${years} ${years === 1 ? "year" : "years"}${remainder ? ` ${remainder} ${remainder === 1 ? "month" : "months"}` : ""}`;
+		frappe.web_form.set_value("custom_flexi_employment_period", period);
+	}
+
+	frappe.web_form.on("custom_flexi_employment_start_date", updateEmploymentPeriod);
+	frappe.web_form.events.on("after_load", updateEmploymentPeriod);
+})();
+'''
 CALCULATION_SCRIPT = r'''
 /* comfort_homes: loan application live calculation refresh v3 */
 (function () {
@@ -118,6 +144,51 @@ def _configure_branch_location_field(web_form):
 		break
 
 
+def _ensure_employment_fields(web_form):
+	"""Expose existing employment fields in a useful order on the public form."""
+	fields = web_form.get("web_form_fields") or []
+	by_name = {field.fieldname: field for field in fields if field.fieldname}
+
+	def ensure(fieldname, **values):
+		field = by_name.get(fieldname)
+		if not field:
+			field = web_form.append("web_form_fields", {"fieldname": fieldname, **values})
+			by_name[fieldname] = field
+		else:
+			for key, value in values.items():
+				setattr(field, key, value)
+		return field
+
+	start_date = ensure(
+		"custom_flexi_employment_start_date", label="Employment Start Date", fieldtype="Date", read_only=0
+	)
+	history_section = ensure(
+		"custom_flexi_employment_history_section", label="Employment History", fieldtype="Section Break", read_only=0
+	)
+	history = ensure(
+		"custom_flexi_employment_history",
+		label="Employment History",
+		fieldtype="Table",
+		options="Flexi Employment History",
+		read_only=0,
+	)
+
+	def move_after(field, after_fieldname):
+		all_fields = web_form.web_form_fields
+		if field in all_fields:
+			all_fields.remove(field)
+		position = next((index for index, item in enumerate(all_fields) if item.fieldname == after_fieldname), len(all_fields) - 1)
+		all_fields.insert(position + 1, field)
+
+	# Date belongs beside the existing calculated period. The table follows the
+	# current-employer details, before family contacts.
+	move_after(start_date, "custom_flexi_employment_column")
+	move_after(history_section, "custom_flexi_employer_address")
+	move_after(history, "custom_flexi_employment_history_section")
+	for index, field in enumerate(web_form.web_form_fields, start=1):
+		field.idx = index
+
+
 def inject_loan_application_duplicate_check():
 	"""Safely install the guard in every published Loan Application Web Form."""
 	path = Path(__file__).parent / "public" / "js" / "loan_application_duplicate_check.js"
@@ -128,6 +199,7 @@ def inject_loan_application_duplicate_check():
 	for row in web_forms:
 		web_form = frappe.get_doc("Web Form", row.name)
 		_configure_branch_location_field(web_form)
+		_ensure_employment_fields(web_form)
 		current_script = web_form.client_script or ""
 		# Never rewrite a form already marked as managed. This keeps every
 		# customer-authored form script intact on later migrations.
@@ -140,5 +212,7 @@ def inject_loan_application_duplicate_check():
 		# script. It is idempotent and survives database restores/redeployments.
 		if CALCULATION_MARKER not in current_script:
 			current_script = "\n\n".join([current_script, CALCULATION_SCRIPT.strip()])
+		if EMPLOYMENT_MARKER not in current_script:
+			current_script = "\n\n".join([current_script, EMPLOYMENT_SCRIPT.strip()])
 		web_form.client_script = current_script
 		web_form.save(ignore_permissions=True)

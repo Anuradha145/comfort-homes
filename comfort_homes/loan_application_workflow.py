@@ -4,7 +4,7 @@ from math import ceil
 
 import frappe
 from frappe import _
-from frappe.utils import flt
+from frappe.utils import flt, getdate, today
 
 from comfort_homes.api import _existing_customer_match
 
@@ -32,6 +32,28 @@ def _set(doc, fieldname, value):
 		doc.set(fieldname, value)
 
 
+def _set_employment_period(doc):
+	"""Calculate the existing Employment Period from Employment Start Date."""
+	start_date = doc.get("custom_flexi_employment_start_date")
+	if not start_date:
+		return
+	start = getdate(start_date)
+	current = getdate(today())
+	if start > current:
+		frappe.throw(_("Employment Start Date cannot be in the future."))
+	months = (current.year - start.year) * 12 + current.month - start.month
+	if current.day < start.day:
+		months -= 1
+	months = max(months, 0)
+	years, remaining_months = divmod(months, 12)
+	period = _("{0} {1}").format(years, _("year") if years == 1 else _("years"))
+	if remaining_months:
+		period += _(" {0} {1}").format(
+			remaining_months, _("month") if remaining_months == 1 else _("months")
+		)
+	_set(doc, "custom_flexi_employment_period", period)
+
+
 def calculate_financials(doc, method=None):
 	"""Calculate financial fields on the server before every save.
 
@@ -39,6 +61,7 @@ def calculate_financials(doc, method=None):
 	the source of truth: imports, Desk edits, API calls and public Web Form saves
 	all receive the same purchase, deposit, DSR and repayment figures.
 	"""
+	_set_employment_period(doc)
 	items = doc.get("custom_flexi_purchase_items") or []
 	purchase_value = 0.0
 	for row in items:
