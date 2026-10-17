@@ -25,6 +25,19 @@ def validate_public_application_not_existing_customer(doc, method=None):
 		)
 
 
+def validate_branch_location(doc, method=None):
+	"""A branch/location must be a selectable child Cost Center, never a group."""
+	branch_location = doc.get("custom_branchlocation")
+	if not branch_location:
+		return
+
+	if frappe.db.get_value("Cost Center", branch_location, "is_group"):
+		frappe.throw(
+			_("Select a branch/location Cost Center, not a Cost Center group."),
+			title=_("Child Cost Center Required"),
+		)
+
+
 def validate_deposit_invoice(doc, method=None):
 	"""A submitted Sales Invoice is required before a deposit-bearing contract progresses."""
 	previous = doc.get_doc_before_save()

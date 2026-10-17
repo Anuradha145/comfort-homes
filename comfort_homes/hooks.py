@@ -8,10 +8,14 @@ app_license = "mit"
 webform_include_js = {"Loan Application": "public/js/loan_application_duplicate_check.js"}
 # Web Forms created in the database (rather than marked Standard) do not load
 # webform_include_js. Load the small route-guarded script on website pages too.
-web_include_js = "public/js/loan_application_duplicate_check.js"
+web_include_js = [
+	"public/js/loan_application_duplicate_check.js",
+	"public/js/loan_application_branch_filter.js",
+]
 
 doctype_js = {
 	"Loan Application": [
+		"public/js/loan_application_branch_filter.js",
 		"public/js/loan_application_workflow_notes.js",
 		"public/js/loan_application_signed_pack.js",
 	]
@@ -61,7 +65,10 @@ doc_events = {
 	"Loan Disbursement": {"before_validate": "comfort_homes.loan_mapping.apply_loan_values_to_disbursement"},
 	"Loan Application": {
 		"before_insert": "comfort_homes.loan_application_workflow.validate_public_application_not_existing_customer",
-		"before_validate": "comfort_homes.loan_application_workflow.validate_deposit_invoice",
+		"before_validate": [
+			"comfort_homes.loan_application_workflow.validate_branch_location",
+			"comfort_homes.loan_application_workflow.validate_deposit_invoice",
+		],
 	},
 }
 
