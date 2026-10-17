@@ -42,7 +42,11 @@ fixtures = [
 	},
 	{
 		"dt": "Property Setter",
-		"filters": [["name", "in", ["Loan Application-custom_flexi_payment_period-options"]]],
+		"filters": [["name", "in", [
+			"Loan Application-custom_flexi_payment_period-options",
+			"Loan Application-applicant_name-label",
+			"Loan Application-applicant_name-insert_after",
+		]]],
 	},
 	{
 		"dt": "DocType",
@@ -71,6 +75,10 @@ fixtures = [
 		# Web Form.  Fresh sites therefore receive the same five-step form.
 		"dt": "Web Form",
 		"filters": [["name", "=", "loan-application-new"]],
+	},
+	{
+		"dt": "Workflow",
+		"filters": [["name", "=", "Loan Application Workflow-1"]],
 	},
 ]
 

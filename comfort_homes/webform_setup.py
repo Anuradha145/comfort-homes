@@ -72,6 +72,35 @@ def _ensure_custom_doctype(name, *, istable=False, autoname=None, fields=None):
 	doc.insert(ignore_permissions=True)
 
 
+def _ensure_grid_columns():
+	"""Keep the essential fields visible in Desk and Web Form table grids.
+
+	This also repairs tables created by an earlier app version that had the
+	child schema but no visible grid columns.
+	"""
+	visible = {
+		"Flexi Application Contact": ["contact_type", "full_name", "relationship", "mobile_number"],
+		"Flexi Employment History": ["employer", "role", "start_date", "end_date"],
+		"Flexi Income Entry": ["income_type", "description", "frequency", "amount", "monthly_amount"],
+		"Flexi Living Expense": ["category", "description", "frequency_per_month", "expense_amount", "monthly_amount"],
+		"Flexi Finance Obligation": ["obligation_type", "provider", "payment_method", "frequency", "amount", "monthly_amount"],
+		"Flexi Purchase Item": ["product_description", "quantity", "unit_price", "total_amount"],
+	}
+	for doctype, fieldnames in visible.items():
+		if not frappe.db.exists("DocType", doctype):
+			continue
+		frappe.db.set_value("DocType", doctype, "editable_grid", 1, update_modified=False)
+		for fieldname in fieldnames:
+			frappe.db.set_value(
+				"DocField",
+				{"parent": doctype, "fieldname": fieldname},
+				"in_list_view",
+				1,
+				update_modified=False,
+			)
+		frappe.clear_cache(doctype=doctype)
+
+
 def ensure_install_schema():
 	"""Install the signing DocTypes and parent field ahead of all fixtures.
 
@@ -240,6 +269,7 @@ def ensure_install_schema():
 			_schema_field("customer_signature_file", "Attach", "Uploaded Signature", read_only=1),
 		],
 	)
+	_ensure_grid_columns()
 	create_custom_fields(
 		{
 			"Loan Application": [
