@@ -1,5 +1,5 @@
 /* Restrict Loan Application Branch/Location to child Cost Centers. */
-(function () {
+;(function () {
 	const FIELDNAME = "custom_branchlocation";
 	const QUERY = () => ({ filters: { is_group: 0 } });
 
