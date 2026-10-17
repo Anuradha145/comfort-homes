@@ -1,5 +1,8 @@
 /* Public Loan Application guard: existing customers are handled by staff. */
 (function () {
+	if (window.__comfortHomesDuplicateCheckLoaded) return;
+	window.__comfortHomesDuplicateCheckLoaded = true;
+
 	let duplicateCheckBound = false;
 	let submissionApproved = false;
 	let checkingDuplicate = false;

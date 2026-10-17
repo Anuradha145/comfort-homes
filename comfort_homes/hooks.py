@@ -6,6 +6,9 @@ app_email = "support@comforthomefurnishing.com"
 app_license = "mit"
 
 webform_include_js = {"Loan Application": "public/js/loan_application_duplicate_check.js"}
+# Web Forms created in the database (rather than marked Standard) do not load
+# webform_include_js. Load the small route-guarded script on website pages too.
+web_include_js = "public/js/loan_application_duplicate_check.js"
 
 doctype_js = {
 	"Loan Application": [
