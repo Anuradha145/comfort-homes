@@ -35,7 +35,10 @@ required_apps = ["frappe", "erpnext", "lending"]
 fixtures = [
 	{
 		"dt": "Custom Field",
-		"filters": [["name", "in", ["Loan-custom_mode_of_payment", "Loan Application-custom_deposit_sales_invoice", "Sales Invoice-custom_loan_application"]]],
+		# Flexi extends Lending's standard DocTypes through Custom Field records.
+		# Keeping the complete set here makes a fresh installation reproduce the
+		# same Loan Application layout and database columns as the working site.
+		"filters": [["dt", "in", ["Loan Application", "Loan", "Loan Disbursement", "Sales Invoice"]]],
 	},
 	{
 		"dt": "Property Setter",
@@ -158,6 +161,9 @@ doc_events = {
 # ------------
 
 before_install = "comfort_homes.webform_setup.ensure_install_schema"
+# Existing sites run `migrate`, not `install_app`.  This must execute before
+# fixture sync so data fixtures never reference an absent custom DocType.
+before_migrate = "comfort_homes.webform_setup.ensure_install_schema"
 # after_install = "comfort_homes.install.after_install"
 
 # Uninstallation

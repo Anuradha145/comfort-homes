@@ -79,6 +79,120 @@ def ensure_install_schema():
 	`loan_document_template.json` from being imported before MariaDB has the
 	`tabLoan Document Template` table.
 	"""
+	# Master data used by the Flexi address selectors.  The records themselves
+	# are business data; the app owns the portable schema only.
+	_ensure_custom_doctype(
+		"Province",
+		fields=[
+			_schema_field("province", "Data", "Province", reqd=1, in_list_view=1),
+			_schema_field("province_code", "Data", "Province Code"),
+			_schema_field("is_active", "Check", "Is Active", default="1"),
+			_schema_field("country", "Link", "Country", options="Country", reqd=1, in_list_view=1),
+			_schema_field("division", "Select", "Division", options="\nCentral\nEastern\nNorthern\nWestern\nRotuma"),
+		],
+	)
+	_ensure_custom_doctype(
+		"City",
+		fields=[
+			_schema_field("city_name", "Data", "City", reqd=1, in_list_view=1),
+			_schema_field("country", "Link", "Country", options="Country"),
+			_schema_field("province", "Link", "Province", options="Province"),
+		],
+	)
+	_ensure_custom_doctype(
+		"Suburb",
+		fields=[
+			_schema_field("suburb_name", "Data", "Suburb", reqd=1, in_list_view=1),
+			_schema_field("city", "Link", "City", options="City"),
+			_schema_field("province", "Link", "Province", options="Province"),
+			_schema_field("country", "Link", "Country", options="Country"),
+		],
+	)
+
+	# Child tables are app-owned DocTypes.  Creating them before Custom Field
+	# fixture sync lets the standard Loan Application safely receive Table
+	# fields that reference them on a brand-new site.
+	_ensure_custom_doctype(
+		"Flexi Application Contact",
+		istable=True,
+		fields=[
+			_schema_field("contact_type", "Select", "Contact Type", options="Family Relative\nOffice Referee"),
+			_schema_field("full_name", "Data", "Full Name"),
+			_schema_field("relationship", "Data", "Relationship"),
+			_schema_field("mobile_number", "Phone", "Mobile Number"),
+			_schema_field("home_phone", "Phone", "Home Phone"),
+			_schema_field("lot_number", "Data", "Lot Number"),
+			_schema_field("province", "Link", "Province", options="Province"),
+			_schema_field("city", "Link", "City", options="City"),
+			_schema_field("suburb", "Link", "Suburb", options="Suburb"),
+			_schema_field("district", "Data", "District"),
+			_schema_field("street", "Data", "Street"),
+			_schema_field("employer", "Data", "Employer"),
+			_schema_field("occupation", "Data", "Occupation"),
+			_schema_field("employment_period", "Data", "Employment Period"),
+			_schema_field("employer_address", "Small Text", "Employer Address"),
+			_schema_field("employer_contact", "Phone", "Employer Contact"),
+		],
+	)
+	_ensure_custom_doctype(
+		"Flexi Employment History",
+		istable=True,
+		fields=[
+			_schema_field("employer", "Data", "Employer"),
+			_schema_field("role", "Data", "Role"),
+			_schema_field("start_date", "Date", "Start Date"),
+			_schema_field("end_date", "Date", "End Date"),
+		],
+	)
+	_ensure_custom_doctype(
+		"Flexi Income Entry",
+		istable=True,
+		fields=[
+			_schema_field("income_type", "Select", "Income Type", options="Net Salary / Wages\nOvertime\nSelf-employed Income\nCommission\nRental Income\nTaxi Income\nOther Income\nSalary Deductions"),
+			_schema_field("description", "Data", "Description"),
+			_schema_field("frequency", "Select", "Frequency", options="Weekly\nFortnightly\nBi-monthly\nMonthly"),
+			_schema_field("amount", "Currency", "Amount"),
+			_schema_field("monthly_amount", "Currency", "Monthly Amount", read_only=1),
+			_schema_field("attachment", "Attach Image", "Attachment"),
+			_schema_field("status", "Select", "Status", options="Approved\nRejected"),
+		],
+	)
+	_ensure_custom_doctype(
+		"Flexi Living Expense",
+		istable=True,
+		fields=[
+			_schema_field("category", "Select", "Category", options="Food / Groceries / Market\nRent\nUtilities\nCouncil Rates\nSubscriptions\nClothing\nPhone and Internet\nTransportation\nInsurance\nEducation\nFamily / Church Contributions\nEntertainment\nCredit Card Payments\nOther Cost"),
+			_schema_field("description", "Data", "Description"),
+			_schema_field("frequency_per_month", "Float", "Frequency / Month", default="1"),
+			_schema_field("expense_amount", "Currency", "Expense Amount"),
+			_schema_field("monthly_amount", "Currency", "Monthly Amount", read_only=1),
+			_schema_field("attachment", "Attach Image", "Attachment"),
+			_schema_field("status", "Select", "Status", options="Approved\nRejected"),
+		],
+	)
+	_ensure_custom_doctype(
+		"Flexi Finance Obligation",
+		istable=True,
+		fields=[
+			_schema_field("obligation_type", "Select", "Obligation Type", options="Housing Loan\nPersonal Loan\nMotor Vehicle Loan\nHire Purchase\nBank Loan\nCredit Card\nOther"),
+			_schema_field("provider", "Data", "Provider"),
+			_schema_field("payment_method", "Select", "Payment Method", options="Payroll Deduction\nBank Deduction\nCash / Direct Payment"),
+			_schema_field("frequency", "Select", "Frequency", options="Weekly\nFortnightly\nBi-monthly\nMonthly"),
+			_schema_field("amount", "Currency", "Amount"),
+			_schema_field("monthly_amount", "Currency", "Monthly Amount", read_only=1),
+		],
+	)
+	_ensure_custom_doctype(
+		"Flexi Purchase Item",
+		istable=True,
+		fields=[
+			_schema_field("product_description", "Data", "Product Description"),
+			_schema_field("quantity", "Float", "Quantity", default="1"),
+			_schema_field("unit_price", "Currency", "Unit Price"),
+			_schema_field("total_amount", "Currency", "Total Amount", read_only=1),
+		],
+	)
+
 	_ensure_custom_doctype(
 		"Loan Document Template",
 		autoname="format:LDT-{#####}",
