@@ -38,7 +38,7 @@ fixtures = [
 		# Flexi extends Lending's standard DocTypes through Custom Field records.
 		# Keeping the complete set here makes a fresh installation reproduce the
 		# same Loan Application layout and database columns as the working site.
-		"filters": [["dt", "in", ["Loan Application", "Loan", "Loan Disbursement", "Sales Invoice"]]],
+		"filters": [["dt", "in", ["Loan Application", "Loan", "Loan Disbursement", "Sales Invoice", "Customer", "Contact"]]],
 	},
 	{
 		"dt": "Property Setter",
