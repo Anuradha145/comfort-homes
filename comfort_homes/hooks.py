@@ -26,6 +26,10 @@ after_migrate = [
 	"comfort_homes.co_applicant.ensure_loan_application_fields",
 	"comfort_homes.co_applicant.configure_co_applicant_profile",
 ]
+# A first-time app installation performs fixture sync but not an ordinary site
+# migration.  Apply the same idempotent Web Form setup after either path.
+after_install = "comfort_homes.webform_setup.inject_loan_application_duplicate_check"
+after_sync = "comfort_homes.webform_setup.inject_loan_application_duplicate_check"
 
 # Apps
 # ------------------
@@ -178,7 +182,6 @@ before_install = "comfort_homes.webform_setup.ensure_install_schema"
 # Existing sites run `migrate`, not `install_app`.  This must execute before
 # fixture sync so data fixtures never reference an absent custom DocType.
 before_migrate = "comfort_homes.webform_setup.ensure_install_schema"
-# after_install = "comfort_homes.install.after_install"
 
 # Uninstallation
 # ------------
