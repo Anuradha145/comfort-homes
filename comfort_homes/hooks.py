@@ -41,6 +41,7 @@ fixtures = [
 		"dt": "Server Script",
 		"filters": [["name", "in", [
 			"Flexi Default Customer Agreements",
+			"Dynamic Laon P",
 			"FLEXI DOCUMENT SYNC",
 			"FLEXI DOCUMENT CUSTOMER SIGN",
 			"FLEXI DOCUMENT DIRECTOR SIGN",
