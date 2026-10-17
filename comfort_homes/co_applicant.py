@@ -132,8 +132,14 @@ def configure_co_applicant_profile():
 			frappe.db.set_value(
 				"DocField",
 				{"parent": CO_APPLICANT, "fieldname": fieldname},
-				"hidden",
-				1,
+				{
+					"hidden": 1,
+					# The Co-Applicant DocType began as a clone of Loan Application,
+					# where Loan Product is mandatory. A hidden borrower field must
+					# never keep a financial-profile record from being saved.
+					"reqd": 0,
+					"mandatory_depends_on": "",
+				},
 				update_modified=False,
 			)
 
