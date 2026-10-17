@@ -11,6 +11,27 @@
 	let fieldInputChecksBound = false;
 	let documentInputChecksBound = false;
 	let lookupTimer;
+	let lookupSequence = 0;
+	let duplicateMatch = [];
+
+	function duplicateMessage(matchedBy = duplicateMatch) {
+		const identifier = matchedBy.length === 1
+			? matchedBy[0]
+			: "TIN Number or Email Address";
+		return __(
+			"A customer already exists with this {0}. Please apply from the backend.",
+			[identifier]
+		);
+	}
+
+	function updateProgressAccess() {
+		const blocked = duplicateFound;
+		document.querySelectorAll(".btn-next, .submit-btn").forEach((button) => {
+			button.disabled = blocked;
+			button.setAttribute("aria-disabled", blocked ? "true" : "false");
+			button.classList.toggle("disabled", blocked);
+		});
+	}
 
 	function valueFromInput(fieldname) {
 		const input = frappe.web_form.fields_dict[fieldname]?.wrapper?.querySelector("input");
@@ -19,6 +40,7 @@
 
 	function checkExistingCustomer(showMessage) {
 		if (!isLoanApplicationWebForm()) return Promise.resolve(false);
+		const sequence = ++lookupSequence;
 		return frappe.call({
 			method: "comfort_homes.api.check_existing_customer",
 			args: {
@@ -26,11 +48,15 @@
 				email: valueFromInput("applicant_email_address"),
 			},
 		}).then((response) => {
-			duplicateFound = Boolean((response.message || {}).exists);
+			if (sequence !== lookupSequence) return duplicateFound;
+			const match = response.message || {};
+			duplicateFound = Boolean(match.exists);
+			duplicateMatch = match.matched_by || [];
+			updateProgressAccess();
 			if (duplicateFound && showMessage) {
 				frappe.msgprint({
 					title: __("Existing customer"),
-					message: __("A customer with this TIN Number or Email Address already exists. Please add the loan application from the backend."),
+					message: duplicateMessage(),
 					indicator: "orange",
 				});
 			}
@@ -69,7 +95,7 @@
 					if (exists) {
 						frappe.msgprint({
 							title: __("Existing customer"),
-							message: __("A customer with this TIN Number or Email Address already exists. Please process this loan through the backend."),
+							message: duplicateMessage(),
 							indicator: "orange",
 						});
 						return;

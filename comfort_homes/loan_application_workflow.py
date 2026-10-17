@@ -17,8 +17,10 @@ def validate_public_application_not_existing_customer(doc, method=None):
 		return
 	match = _existing_customer_match(doc.get("custom_tin_number"), doc.get("applicant_email_address"))
 	if match["exists"]:
+		matched_by = match.get("matched_by") or []
+		identifier = matched_by[0] if len(matched_by) == 1 else _("TIN Number or Email Address")
 		frappe.throw(
-			_("A customer with this TIN Number or Email Address already exists. Please add the loan application from the backend."),
+		_("A customer already exists with this {0}. Please apply from the backend.").format(identifier),
 			title=_("Existing Customer"),
 		)
 
