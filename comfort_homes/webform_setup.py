@@ -6,9 +6,9 @@ import frappe
 
 
 MARKER = "/* comfort_homes: loan application duplicate customer check */"
-CALCULATION_MARKER = "/* comfort_homes: loan application live calculation refresh v2 */"
+CALCULATION_MARKER = "/* comfort_homes: loan application live calculation refresh v3 */"
 CALCULATION_SCRIPT = r'''
-/* comfort_homes: loan application live calculation refresh v2 */
+/* comfort_homes: loan application live calculation refresh v3 */
 (function () {
 	let refreshTimer;
 	let depositSource;
@@ -87,6 +87,11 @@ CALCULATION_SCRIPT = r'''
 
 	document.addEventListener("input", onChanged, true);
 	document.addEventListener("change", onChanged, true);
+	// Preserve a configured default percentage (for example 10%) before a
+	// newly-added blank item row causes the legacy table listener to reset it.
+	window.setTimeout(() => {
+		if (!depositSource) depositSource = sourceForDeposit();
+	}, 0);
 })();
 '''
 
