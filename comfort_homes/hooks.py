@@ -23,6 +23,7 @@ doctype_js = {
 after_migrate = [
 	"comfort_homes.webform_setup.inject_loan_application_duplicate_check",
 	"comfort_homes.co_applicant.ensure_loan_application_fields",
+	"comfort_homes.co_applicant.configure_co_applicant_profile",
 ]
 
 # Apps
