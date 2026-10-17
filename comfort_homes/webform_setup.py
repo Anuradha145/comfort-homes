@@ -9,20 +9,20 @@ MARKER = "/* comfort_homes: loan application duplicate customer check */"
 
 
 def inject_loan_application_duplicate_check():
-	"""Install/update the app-owned script without replacing the user's Web Form script."""
-	if not frappe.db.exists("Web Form", "loan-application"):
-		return
-	web_form = frappe.get_doc("Web Form", "loan-application")
+	"""Safely install the guard in every published Loan Application Web Form."""
 	path = Path(__file__).parent / "public" / "js" / "loan_application_duplicate_check.js"
 	managed_script = "\n".join([MARKER, path.read_text().strip()])
-	current_script = web_form.client_script or ""
-	# Everything after our marker is app-owned. Replacing that section makes
-	# subsequent app updates take effect without touching the user's form logic.
-	user_script = current_script.split(MARKER, 1)[0].rstrip()
-	# Keep this guard first: the existing form has a substantial client script,
-	# and an error in it must never stop the duplicate protection from binding.
-	updated_script = "\n\n".join([managed_script, user_script])
-	if updated_script == current_script:
-		return
-	web_form.client_script = updated_script
-	web_form.save(ignore_permissions=True)
+	web_forms = frappe.get_all(
+		"Web Form", filters={"doc_type": "Loan Application", "published": 1}, fields=["name"]
+	)
+	for row in web_forms:
+		web_form = frappe.get_doc("Web Form", row.name)
+		current_script = web_form.client_script or ""
+		# Never rewrite a form already marked as managed. This keeps every
+		# customer-authored form script intact on later migrations.
+		if MARKER in current_script:
+			continue
+		# Put the guard first so a later error in the large existing script does
+		# not stop the TIN/email duplicate protection from binding.
+		web_form.client_script = "\n\n".join([managed_script, current_script])
+		web_form.save(ignore_permissions=True)
