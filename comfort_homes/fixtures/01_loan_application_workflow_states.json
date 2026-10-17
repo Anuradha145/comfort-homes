@@ -1,0 +1,137 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "ok-sign",
+  "modified": "2026-07-30 11:53:23.759225",
+  "name": "Approved",
+  "style": "Success",
+  "workflow_state_name": "Approved"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "remove",
+  "modified": "2026-07-30 11:53:23.759808",
+  "name": "Rejected",
+  "style": "Danger",
+  "workflow_state_name": "Rejected"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-08-27 21:28:16.385802",
+  "name": "Active Loan Account",
+  "style": "",
+  "workflow_state_name": "Active Loan Account"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-08-27 21:28:16.380417",
+  "name": "LPO Pending Approval",
+  "style": "",
+  "workflow_state_name": "LPO Pending Approval"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-08-27 21:28:16.382231",
+  "name": "LPO Sent to Supplier",
+  "style": "",
+  "workflow_state_name": "LPO Sent to Supplier"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-08-27 21:28:16.387836",
+  "name": "Closed",
+  "style": "",
+  "workflow_state_name": "Closed"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-08-27 21:28:16.378656",
+  "name": "Ready for Disbursement",
+  "style": "",
+  "workflow_state_name": "Ready for Disbursement"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-08-27 21:28:16.383986",
+  "name": "Delivered - Awaiting Documents",
+  "style": "",
+  "workflow_state_name": "Delivered - Awaiting Documents"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-08-27 21:28:16.381291",
+  "name": "LPO Approved",
+  "style": "",
+  "workflow_state_name": "LPO Approved"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-08-27 21:28:16.379531",
+  "name": "Loan Activated",
+  "style": "",
+  "workflow_state_name": "Loan Activated"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-09-25 20:54:04.167792",
+  "name": "Under Review",
+  "style": "",
+  "workflow_state_name": "Under Review"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-09-25 20:54:13.282238",
+  "name": "Pending Approval",
+  "style": "",
+  "workflow_state_name": "Pending Approval"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-09-25 20:54:23.533037",
+  "name": "Contract Signing",
+  "style": "",
+  "workflow_state_name": "Contract Signing"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2025-06-27 14:55:16.695882",
+  "name": "Initiated",
+  "style": "",
+  "workflow_state_name": "Initiated"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2025-06-27 16:12:41.379987",
+  "name": "Draft",
+  "style": "",
+  "workflow_state_name": "Draft"
+ }
+]
