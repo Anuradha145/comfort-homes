@@ -16,7 +16,6 @@ web_include_js = [
 doctype_js = {
 	"Loan Application": [
 		"public/js/loan_application_branch_filter.js",
-		"public/js/loan_application_co_applicant.js",
 		"public/js/loan_application_workflow_notes.js",
 		"public/js/loan_application_signed_pack.js",
 	]
