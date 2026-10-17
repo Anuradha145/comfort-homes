@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import frappe
+from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 
 MARKER = "/* comfort_homes: loan application duplicate customer check */"
@@ -33,6 +34,113 @@ EMPLOYMENT_SCRIPT = r'''
 	frappe.web_form.events.on("after_load", updateEmploymentPeriod);
 })();
 '''
+
+
+def _schema_field(fieldname, fieldtype, label=None, **values):
+	"""Return a concise DocField definition for an app-owned custom DocType."""
+	return {
+		"fieldname": fieldname,
+		"fieldtype": fieldtype,
+		"label": label or fieldname.replace("_", " ").title(),
+		**values,
+	}
+
+
+def _ensure_custom_doctype(name, *, istable=False, autoname=None, fields=None):
+	"""Create app-owned signing schema before fixture import on a fresh site.
+
+	Frappe imports fixtures during app installation.  The agreement-template
+	fixture therefore cannot be the thing that creates its own DocType: its
+	table must already exist.  This is deliberately idempotent so restored and
+	existing sites retain their current DocType customisation unchanged.
+	"""
+	if frappe.db.exists("DocType", name):
+		return
+	doc = frappe.get_doc(
+		{
+			"doctype": "DocType",
+			"name": name,
+			"module": "Custom",
+			"custom": 1,
+			"istable": 1 if istable else 0,
+			"editable_grid": 1 if istable else 0,
+			"autoname": autoname or "",
+			"fields": fields or [],
+			"permissions": [] if istable else [{"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1}],
+		}
+	)
+	doc.insert(ignore_permissions=True)
+
+
+def ensure_install_schema():
+	"""Install the signing DocTypes and parent field ahead of all fixtures.
+
+	This hook is essential for new Frappe sites.  In particular, it prevents
+	`loan_document_template.json` from being imported before MariaDB has the
+	`tabLoan Document Template` table.
+	"""
+	_ensure_custom_doctype(
+		"Loan Document Template",
+		autoname="format:LDT-{#####}",
+		fields=[
+			_schema_field("document_name", "Data", "Document Name", reqd=1, in_list_view=1),
+			_schema_field("document_code", "Data", "Document Code", reqd=1, in_list_view=1),
+			_schema_field("version", "Int", "Version", default="1", reqd=1, in_list_view=1),
+			_schema_field("status", "Select", "Status", options="Draft\nCurrent\nSuperseded\nWithdrawn", default="Draft", reqd=1, in_list_view=1),
+			_schema_field("effective_from", "Date", "Effective From"),
+			_schema_field("template_file", "Attach", "Template File"),
+			_schema_field("description", "Small Text", "Description"),
+			_schema_field("requires_signature", "Check", "Requires Signature", default="1"),
+			_schema_field("requires_acknowledgement", "Check", "Requires Acknowledgement", default="1"),
+			_schema_field("template_type", "Select", "Template Type", options="HTML Template\nUploaded PDF\nPrint Format", default="HTML Template", reqd=1),
+			_schema_field("html_template", "Code", "HTML Template", options="HTML"),
+			_schema_field("requires_director_signature", "Check", "Requires Director Signature", default="1"),
+			_schema_field("requires_customer_read", "Check", "Customer Must Read", default="1"),
+			_schema_field("sequence", "Int", "Sequence", default="1"),
+		],
+	)
+	_ensure_custom_doctype(
+		"Loan Customer Agreement",
+		istable=True,
+		fields=[
+			_schema_field("document_template", "Link", "Document Template", options="Loan Document Template", reqd=1, in_list_view=1),
+			_schema_field("document_code", "Data", "Document Code", read_only=1, in_list_view=1),
+			_schema_field("version", "Int", "Version", default="1", read_only=1),
+			_schema_field("status", "Select", "Status", options="Pending\nReady\nViewed\nCustomer Signed\nDirector Signed\nCompleted", default="Pending", in_list_view=1),
+			_schema_field("generated_on", "Datetime", "Generated On", read_only=1),
+			_schema_field("customer_viewed_on", "Datetime", "Customer Viewed On", read_only=1),
+			_schema_field("customer_signed_on", "Datetime", "Customer Signed On", read_only=1),
+			_schema_field("director_signed_on", "Datetime", "Director Signed On", read_only=1),
+			_schema_field("generated_file", "Attach", "Generated Copy", read_only=1),
+			_schema_field("final_signed_file", "Attach", "Signed Copy", read_only=1),
+			_schema_field("generated_html", "Long Text", "Generated Agreement HTML", hidden=1, read_only=1),
+			_schema_field("customer_viewed", "Check", "Customer Viewed Agreement", default="0", read_only=1),
+			_schema_field("customer_acknowledged", "Check", "Customer Read and Agreed", default="0", read_only=1),
+			_schema_field("customer_acknowledged_on", "Datetime", "Customer Agreed On", read_only=1),
+			_schema_field("customer_signature", "Signature", "Customer Signature", read_only=1),
+			_schema_field("director_name", "Data", "Director Name", read_only=1),
+			_schema_field("director_signature", "Signature", "Director Signature", read_only=1),
+			_schema_field("completed_on", "Datetime", "Completed On", read_only=1),
+			_schema_field("signing_token", "Data", "Signing Token", hidden=1, read_only=1),
+			_schema_field("signing_link", "Data", "Customer Signing Link", read_only=1),
+			_schema_field("customer_signature_file", "Attach", "Uploaded Signature", read_only=1),
+		],
+	)
+	create_custom_fields(
+		{
+			"Loan Application": [
+				{
+					"fieldname": "custom_customer_documents",
+					"label": "Customer Documents",
+					"fieldtype": "Table",
+					"options": "Loan Customer Agreement",
+					"insert_after": "documents_tab",
+				}
+			]
+		},
+		update=True,
+	)
+	frappe.clear_cache(doctype="Loan Application")
 CALCULATION_SCRIPT = r'''
 /* comfort_homes: loan application live calculation refresh v3 */
 (function () {

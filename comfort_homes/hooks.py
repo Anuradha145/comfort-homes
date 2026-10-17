@@ -16,6 +16,7 @@ web_include_js = [
 doctype_js = {
 	"Loan Application": [
 		"public/js/loan_application_branch_filter.js",
+		"public/js/loan_application_co_applicant.js",
 		"public/js/loan_application_workflow_notes.js",
 		"public/js/loan_application_signed_pack.js",
 	]
@@ -156,7 +157,7 @@ doc_events = {
 # Installation
 # ------------
 
-# before_install = "comfort_homes.install.before_install"
+before_install = "comfort_homes.webform_setup.ensure_install_schema"
 # after_install = "comfort_homes.install.after_install"
 
 # Uninstallation
