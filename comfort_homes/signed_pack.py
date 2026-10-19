@@ -1,15 +1,15 @@
-"""Contract pack downloads for a Loan Application.
+"""Printable customer-document packs for a Loan Application.
 
-* make_signed_pack  - every completed agreement's signed copy joined into one PDF.
-* make_blank_forms  - every agreement form, completely blank, joined into one PDF.
-
-The Loan Application's "Download PDF With Signed Documents?" field chooses which
-one is offered: Yes -> signed pack (all documents Completed), No -> blank forms.
+The application itself is the source of truth for customer documents.  Every
+individual document button and the combined download use the same configured
+``Loan Customer Agreement`` rows and their linked Print Formats.  This module
+does not sign, alter, or substitute any documents.
 """
 
 import hashlib
 import re
 from io import BytesIO
+from urllib.parse import urlencode
 
 import frappe
 from frappe import _
@@ -18,34 +18,6 @@ try:
 	from pypdf import PdfReader, PdfWriter
 except ImportError:  # older benches
 	from PyPDF2 import PdfReader, PdfWriter
-
-COLLECTION_LABEL = "download pdf with signed documents"
-# Used for blank forms when an application has no agreement rows yet.
-DEFAULT_FORMS = (
-	"Hire Purchase Agreement",
-	"Schedule 1",
-	"Form 1",
-	"Form 2",
-	"Summary of Financial Obligations",
-	"Consent Form",
-)
-
-
-def _collection_fieldname():
-	for df in frappe.get_meta("Loan Application").fields:
-		if (df.label or "").strip().lower().startswith(COLLECTION_LABEL):
-			return df.fieldname
-	return None
-
-
-def _check_collection_complete(application):
-	fieldname = _collection_fieldname()
-	if fieldname and str(application.get(fieldname) or "").strip().lower() not in ("yes", "1"):
-		frappe.throw(
-			_("Set \"Download PDF With Signed Documents?\" to Yes to download the signed pack."),
-			title=_("Signed documents not selected"),
-		)
-
 
 def _agreement_rows(docname):
 	rows = frappe.get_all(
@@ -60,7 +32,7 @@ def _agreement_rows(docname):
 			"Loan Document Template", row.document_template, ["document_code", "document_name", "print_format"], as_dict=True
 		) or {}
 		code = row.document_code or template.get("document_code")
-		if code == "REQ":
+		if code == "REQ" or not template.get("print_format"):
 			continue
 		row.title = template.get("document_name") or code
 		row.print_format = template.get("print_format")
@@ -68,8 +40,81 @@ def _agreement_rows(docname):
 	return result
 
 
+@frappe.whitelist()
+def get_document_print_url(loan_application, document_template):
+	"""Return the print-view URL for one configured customer document.
+
+	The template is verified against the Loan Application child table.  This
+	prevents the Desk button from being used to print some unrelated format.
+	"""
+	application = frappe.get_doc("Loan Application", loan_application)
+	frappe.has_permission("Loan Application", "read", doc=application, throw=True)
+	row = next((item for item in _agreement_rows(application.name) if item.document_template == document_template), None)
+	if not row:
+		frappe.throw(_("This document is not configured for the Loan Application."))
+	if not frappe.db.exists("Print Format", row.print_format):
+		frappe.throw(_("Print Format {0} configured for {1} was not found.").format(row.print_format, row.title))
+	return {
+		"title": row.title,
+		"url": "/printview?" + urlencode(
+			{
+				"doctype": "Loan Application",
+				"name": application.name,
+				"format": row.print_format,
+				"no_letterhead": 1,
+			}
+		),
+	}
+
+
 _TEXT = re.compile(r">([^<]+)<")
 _EMPTY_VALUES = re.compile(r"(?<![\w.,])(?:None|0\.00?)(?![\w.])")
+_LEGACY_LAYOUT_OVERRIDE = re.compile(
+	r"\s*<style>\s*/\* Uniform Typography and Layout \*/.*?</style>\s*", re.IGNORECASE | re.DOTALL
+)
+CUSTOMER_PRINT_FORMATS = (
+	"Hire Purchase Agreement",
+	"Schedule 1",
+	"Form 1",
+	"Form 2",
+	"Summary of Financial Obligations",
+	"Consent Form",
+)
+
+
+@frappe.whitelist()
+def normalize_customer_print_formats():
+	"""Remove the accidental global CSS override from the physical print pack.
+
+	Each legal document defines its own A4 size, margins, typography, borders,
+	and tables.  The old appended style overrode all of those rules with
+	``!important`` and even removed table borders.  It must not be applied to
+	any customer document.
+	"""
+	updated = []
+	for name in CUSTOMER_PRINT_FORMATS:
+		if not frappe.db.exists("Print Format", name):
+			continue
+		print_format = frappe.get_doc("Print Format", name)
+		cleaned_html = _LEGACY_LAYOUT_OVERRIDE.sub("\n", print_format.html or "")
+		if cleaned_html != (print_format.html or ""):
+			print_format.html = cleaned_html
+			print_format.save(ignore_permissions=True)
+			updated.append(name)
+
+	# Both old Client Scripts open, sequence, or gate electronic signature
+	# dialogs.  The app's Desk script replaces them with print-only actions.
+	for script_name in ("Flexi Customer Document Signing", "Flexi Customer Document Signing Order"):
+		if not frappe.db.exists("Client Script", script_name):
+			continue
+		client_script = frappe.get_doc("Client Script", script_name)
+		if client_script.enabled:
+			client_script.enabled = 0
+			client_script.save(ignore_permissions=True)
+
+	frappe.clear_cache(doctype="Loan Application")
+	frappe.db.commit()
+	return {"updated_print_formats": updated, "signing_client_scripts_disabled": True}
 
 
 def _clear_empty_values(html):
@@ -171,44 +216,32 @@ def make_signed_pack(loan_application):
 
 
 @frappe.whitelist()
-def make_blank_forms(loan_application):
-	"""Every agreement form with no customer details at all, joined into one PDF."""
+def make_document_pack(loan_application):
+	"""Join the exact configured Print Formats for this application into one PDF."""
 	application = frappe.get_doc("Loan Application", loan_application)
 	frappe.has_permission("Loan Application", "read", doc=application, throw=True)
 
 	rows = _agreement_rows(application.name)
-	forms = [(row.title, row.print_format) for row in rows if row.print_format] or [
-		(name, name) for name in DEFAULT_FORMS
-	]
-
-	forms = [(title, pf) for title, pf in forms if frappe.db.exists("Print Format", pf)]
-	if not forms:
-		frappe.throw(_("None of the contract print formats were found."))
-	titles = [title for title, _pf in forms]
-
-	# Blank forms are identical for every application, so build them once and reuse
-	# the file until one of the print formats is edited.
-	version = "|".join(
-		"{0}@{1}".format(pf, frappe.db.get_value("Print Format", pf, "modified")) for _t, pf in forms
-	)
-	file_name = "Blank Contract Forms - {0}.pdf".format(hashlib.md5(version.encode()).hexdigest()[:10])
-	cached = frappe.db.get_value("File", {"file_name": file_name, "is_private": 0}, "file_url")
-	if cached:
-		return {"mode": "pdf", "file_url": cached, "documents": titles, "pages": None}
+	if not rows:
+		frappe.throw(
+			_("No printable customer documents are configured for this Loan Application."),
+			title=_("No Print Formats configured"),
+		)
 
 	parts = []
-	for title, print_format in forms:
-		blank = frappe.new_doc("Loan Application")
-		blank.name = ""
-		blank.company = application.company
-		html = frappe.get_print("Loan Application", print_format=print_format, doc=blank, no_letterhead=1)
-		parts.append({"title": title, "html": _clear_empty_values(html)})
+	for row in rows:
+		if not frappe.db.exists("Print Format", row.print_format):
+			frappe.throw(
+				_("Print Format {0} configured for {1} was not found.").format(row.print_format, row.title),
+				title=_("Missing Print Format"),
+			)
+		html = frappe.get_print("Loan Application", print_format=row.print_format, doc=application, no_letterhead=1)
+		parts.append({"title": row.title, "html": html})
 
-	content, pages = _join(parts)
-	if content is None:
-		return {"mode": "html", "documents": parts}
-	# Public: the blank forms hold no customer data, and every user can reuse the same file.
-	file_doc = frappe.get_doc(
-		{"doctype": "File", "file_name": file_name, "content": content, "is_private": 0}
-	).insert(ignore_permissions=True)
-	return {"mode": "pdf", "file_url": file_doc.file_url, "documents": titles, "pages": pages}
+	return _result(application, "Customer Documents - {0}.pdf".format(application.name), parts)
+
+
+@frappe.whitelist()
+def make_blank_forms(loan_application):
+	"""Compatibility alias retained for existing users of the old button."""
+	return make_document_pack(loan_application)

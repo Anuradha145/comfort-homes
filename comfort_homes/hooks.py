@@ -53,12 +53,12 @@ fixtures = [
 		]]],
 	},
 	{
-		"dt": "DocType",
-		"filters": [["name", "in", ["Loan Bank Reconciliation", "Loan Bank Reconciliation Item"]]],
-	},
-	{
 		"dt": "Client Script",
-		"filters": [["name", "in", ["Flexi Loan Bank Reconciliation", "Flexi Customer Document Signing"]]],
+		"filters": [["name", "in", [
+			"Flexi Loan Bank Reconciliation",
+			"Flexi Customer Document Signing",
+			"Flexi Customer Document Signing Order",
+		]]],
 	},
 	{
 		"dt": "Server Script",
@@ -73,6 +73,20 @@ fixtures = [
 	{
 		"dt": "Loan Document Template",
 		"filters": [["document_code", "=", "REQ"]],
+	},
+	{
+		# The six customer documents are physically printed, signed, and scanned.
+		# Store the actual layouts in the app so a restore does not replace them
+		# with unrelated or stale print formats.
+		"dt": "Print Format",
+		"filters": [["name", "in", [
+			"Hire Purchase Agreement",
+			"Schedule 1",
+			"Form 1",
+			"Form 2",
+			"Summary of Financial Obligations",
+			"Consent Form",
+		]]],
 	},
 	{
 		# The published public application is an app fixture, not a site-only
