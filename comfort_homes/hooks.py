@@ -5,13 +5,12 @@ app_description = "Comfort Homes lending customisations"
 app_email = "support@comforthomefurnishing.com"
 app_license = "mit"
 
-webform_include_js = {"Loan Application": "public/js/loan_application_duplicate_check.js"}
-# Web Forms created in the database (rather than marked Standard) do not load
-# webform_include_js. Load the small route-guarded script on website pages too.
-web_include_js = [
-	"public/js/loan_application_duplicate_check.js",
-	"public/js/loan_application_branch_filter.js",
-]
+# The Loan Application Web Form is database-backed, so its client script is
+# installed idempotently by ``webform_setup.inject_loan_application_duplicate_check``.
+# Do not also load that calculation bridge as a Web Form/website asset: multiple
+# copies register competing Currency input listeners and can corrupt a value
+# while a customer is typing it.
+web_include_js = ["public/js/loan_application_branch_filter.js"]
 
 doctype_js = {
 	"Loan Application": [
@@ -25,11 +24,12 @@ after_migrate = [
 	"comfort_homes.webform_setup.inject_loan_application_duplicate_check",
 	"comfort_homes.co_applicant.ensure_loan_application_fields",
 	"comfort_homes.co_applicant.configure_co_applicant_profile",
+	"comfort_homes.signed_pack.normalize_customer_print_formats",
 ]
 # A first-time app installation performs fixture sync but not an ordinary site
 # migration.  Apply the same idempotent Web Form setup after either path.
-after_install = "comfort_homes.webform_setup.inject_loan_application_duplicate_check"
-after_sync = "comfort_homes.webform_setup.inject_loan_application_duplicate_check"
+after_install = "comfort_homes.webform_setup.setup_web_form_and_print_formats"
+after_sync = "comfort_homes.webform_setup.setup_web_form_and_print_formats"
 
 # Apps
 # ------------------

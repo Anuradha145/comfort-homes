@@ -47,7 +47,7 @@ def get_document_print_url(loan_application, document_template):
 	The template is verified against the Loan Application child table.  This
 	prevents the Desk button from being used to print some unrelated format.
 	"""
-	application = frappe.get_doc("Loan Application", loan_application)
+	application = _set_print_aliases(frappe.get_doc("Loan Application", loan_application))
 	frappe.has_permission("Loan Application", "read", doc=application, throw=True)
 	row = next((item for item in _agreement_rows(application.name) if item.document_template == document_template), None)
 	if not row:
@@ -82,6 +82,13 @@ CUSTOMER_PRINT_FORMATS = (
 )
 
 
+def _set_print_aliases(application):
+	"""Provide values used by historic placeholders in legal print layouts."""
+	application.hp_account_no = application.get("custom_flexi_hp_account_number") or ""
+	application.hp_reference_no = application.get("custom_flexi_quotation_number") or ""
+	return application
+
+
 @frappe.whitelist()
 def normalize_customer_print_formats():
 	"""Remove the accidental global CSS override from the physical print pack.
@@ -97,6 +104,10 @@ def normalize_customer_print_formats():
 			continue
 		print_format = frappe.get_doc("Print Format", name)
 		cleaned_html = _LEGACY_LAYOUT_OVERRIDE.sub("\n", print_format.html or "")
+		# Direct print URLs load a fresh document, so use the persisted custom
+		# fields rather than the aliases created by old signing server scripts.
+		cleaned_html = cleaned_html.replace("doc.hp_account_no", "doc.custom_flexi_hp_account_number")
+		cleaned_html = cleaned_html.replace("doc.hp_reference_no", "doc.custom_flexi_quotation_number")
 		if cleaned_html != (print_format.html or ""):
 			print_format.html = cleaned_html
 			print_format.save(ignore_permissions=True)
@@ -185,7 +196,7 @@ def _result(application, file_name, parts):
 @frappe.whitelist()
 def make_signed_pack(loan_application):
 	"""Join every completed agreement's signed copy, in document order, and attach it."""
-	application = frappe.get_doc("Loan Application", loan_application)
+	application = _set_print_aliases(frappe.get_doc("Loan Application", loan_application))
 	frappe.has_permission("Loan Application", "read", doc=application, throw=True)
 	_check_collection_complete(application)
 

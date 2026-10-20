@@ -228,7 +228,8 @@
 	}
 
 	function number(value) {
-		return Number(String(value ?? 0).replace(/,/g, "")) || 0;
+		const parsed = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
+		return Number.isFinite(parsed) ? parsed : 0;
 	}
 
 	function money(value) {

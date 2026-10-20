@@ -1,5 +1,6 @@
 """Install small app-owned enhancements into the existing custom Web Form."""
 
+import re
 from pathlib import Path
 
 import frappe
@@ -7,7 +8,9 @@ from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 
 MARKER = "/* comfort_homes: loan application duplicate customer check */"
-CALCULATION_MARKER = "/* comfort_homes: loan application live calculation refresh v3 */"
+MANAGED_SCRIPT_END_MARKER = "/* comfort_homes: end loan application managed script */"
+LEGACY_FORM_SCRIPT_MARKER = "// Frappe v16 Web Forms may not initialize Desk defaults"
+CALCULATION_MARKER = "/* comfort_homes: loan application live calculation refresh v5 */"
 EMPLOYMENT_MARKER = "/* comfort_homes: loan application employment period */"
 EMPLOYMENT_SCRIPT = r'''
 /* comfort_homes: loan application employment period */
@@ -89,6 +92,17 @@ def _ensure_grid_columns():
 	for doctype, fieldnames in visible.items():
 		if not frappe.db.exists("DocType", doctype):
 			continue
+		doctype_doc = frappe.get_doc("DocType", doctype)
+		changed = False
+		for field in doctype_doc.fields:
+			# An earlier attempted workaround changed input fields to Float.  These
+			# are amounts and must remain Currency; the Web Form event handler below
+			# now handles formatted currency values correctly instead.
+			if field.fieldname in {"amount", "expense_amount", "unit_price"} and field.fieldtype != "Currency":
+				field.fieldtype = "Currency"
+				changed = True
+		if changed:
+			doctype_doc.save(ignore_permissions=True)
 		frappe.db.set_value("DocType", doctype, "editable_grid", 1, update_modified=False)
 		for fieldname in fieldnames:
 			frappe.db.set_value(
@@ -286,7 +300,7 @@ def ensure_install_schema():
 	)
 	frappe.clear_cache(doctype="Loan Application")
 CALCULATION_SCRIPT = r'''
-/* comfort_homes: loan application live calculation refresh v3 */
+/* comfort_homes: loan application live calculation refresh v5 */
 (function () {
 	let refreshTimer;
 	let depositSource;
@@ -300,7 +314,10 @@ CALCULATION_SCRIPT = r'''
 		"custom_flexi_other_fee", "custom_flexi_term_months", "custom_flexi_interest_rate",
 		"custom_flexi_payment_period", "custom_flexi_selected_dsr", "loan_product"
 	]);
-	const number = (value) => Number(String(value ?? 0).replace(/,/g, "")) || 0;
+	const number = (value) => {
+		const parsed = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
+		return Number.isFinite(parsed) ? parsed : 0;
+	};
 	const money = (value) => Math.round((number(value) + Number.EPSILON) * 100) / 100;
 
 	function tableFor(target) {
@@ -315,6 +332,50 @@ CALCULATION_SCRIPT = r'''
 		if (row.doctype && row.name) frappe.model.set_value(row.doctype, row.name, fieldname, value);
 	}
 
+	function monthlyFactor(frequency) {
+		return ({ Weekly: 52 / 12, Fortnightly: 26 / 12, "Bi-monthly": 2, Monthly: 1 })[frequency] || 1;
+	}
+
+	function calculateIncomeAndExpensesSafely() {
+		const form = frappe.web_form;
+		const incomeRows = form.get_value("custom_flexi_income_entries") || [];
+		const expenseRows = form.get_value("custom_flexi_living_expenses") || [];
+		const obligationRows = form.get_value("custom_flexi_finance_obligations") || [];
+		const income = incomeRows.reduce((sum, row) => {
+			const monthly = money(number(row.amount) * monthlyFactor(row.frequency));
+			setChildValue(row, "monthly_amount", monthly);
+			return sum + (row.income_type === "Salary Deductions" ? Math.abs(monthly) : monthly);
+		}, 0);
+		const expenses = expenseRows.reduce((sum, row) => {
+			const monthly = money(number(row.expense_amount) * number(row.frequency_per_month || 1));
+			setChildValue(row, "monthly_amount", monthly);
+			return sum + monthly;
+		}, 0);
+		const obligations = obligationRows.reduce((sum, row) => {
+			const monthly = money(number(row.amount) * monthlyFactor(row.frequency));
+			setChildValue(row, "monthly_amount", monthly);
+			return sum + monthly;
+		}, 0);
+		const set = (fieldname, value) => form.set_value(fieldname, money(value));
+		set("custom_flexi_total_monthly_income", income);
+		set("custom_flexi_total_annual_income", income * 12);
+		set("custom_flexi_total_monthly_expenses", expenses);
+		set("custom_flexi_net_monthly_income", income - expenses);
+		set("custom_flexi_dsr_total_income", income);
+		set("custom_flexi_total_finance_obligations", obligations);
+		set("custom_flexi_dsr_net_income", income - obligations);
+		const maxDsr = number(form.get_value("custom_flexi_selected_dsr")) || 35;
+		const preDsr = income ? money(obligations / income * 100) : 0;
+		set("custom_flexi_pre_dsr", preDsr);
+		set("custom_flexi_dsr_margin", Math.max(maxDsr - preDsr, 0));
+		set("custom_flexi_weekly_eligibility", Math.max((income * maxDsr / 100 - obligations) * 12 / 52, 0));
+		["custom_flexi_income_entries", "custom_flexi_living_expenses", "custom_flexi_finance_obligations"].forEach((fieldname) => {
+			form.fields_dict[fieldname]?.grid?.refresh?.();
+			form.fields_dict[fieldname]?.refresh?.();
+		});
+		return { income, obligations };
+	}
+
 	function sourceForDeposit() {
 		if (depositSource) return depositSource;
 		const amount = number(frappe.web_form.get_value("custom_flexi_deposit_amount"));
@@ -325,7 +386,8 @@ CALCULATION_SCRIPT = r'''
 	function recalculate(kind) {
 		if (!frappe.web_form) return;
 		if (kind === "income") {
-			calculateIncomeAndExpenses();
+			const assessment = calculateIncomeAndExpensesSafely();
+			calculateFinanceSummary(sourceForDeposit(), assessment);
 			return;
 		}
 		if (kind === "purchase") {
@@ -346,6 +408,65 @@ CALCULATION_SCRIPT = r'''
 		// Grid controls finish updating their row a little after the browser event.
 		refreshTimer = window.setTimeout(() => recalculate(kind), 450);
 	}
+
+	/*
+	 * The original Web Form script receives the browser's formatted value
+	 * (for example "FJD 9,000.00") and used Number(value), which evaluates to
+	 * NaN.  Replace just its table listener before after_load calls it.  This
+	 * keeps the existing form layout/default rows while storing finite numbers.
+	 */
+	bindTableCalculations = function () {
+		const tableColumns = {
+			custom_flexi_income_entries: ["income_type", "description", "frequency", "amount"],
+			custom_flexi_living_expenses: ["category", "description", "frequency_per_month", "expense_amount"],
+			custom_flexi_finance_obligations: ["obligation_type", "provider", "payment_method", "frequency", "amount"],
+			custom_flexi_purchase_items: ["product_description", "quantity", "unit_price"],
+		};
+		Object.entries(tableColumns).forEach(([fieldname, columns]) => {
+			const field = frappe.web_form?.fields_dict?.[fieldname];
+			if (!field?.wrapper || field.wrapper.dataset.comfortHomesSafeTableListener) return;
+			field.wrapper.dataset.comfortHomesSafeTableListener = "1";
+			let timer;
+			$(field.wrapper)
+				.off("input.flexiTotals change.flexiTotals")
+				.off(".comfortHomesSafeTotals")
+				.on("input.comfortHomesSafeTotals change.comfortHomesSafeTotals", "input, select", (event) => {
+					const column = event.target?.dataset?.fieldname;
+					if (!columns.includes(column)) return;
+					const index = Number(event.target.closest(".grid-row")?.dataset?.idx) - 1;
+					const row = field.df?.data?.[index];
+					if (row) {
+						row[column] = ["amount", "expense_amount", "unit_price", "quantity", "frequency_per_month"].includes(column)
+							? number(event.target.value)
+							: event.target.value;
+					}
+					window.clearTimeout(timer);
+					timer = window.setTimeout(() => {
+						recalculate(fieldname === purchaseTable ? "purchase" : "income");
+					}, 150);
+				});
+		});
+	};
+
+	// Rows added after the page loads can bypass the grid listener entirely.
+	// Capture numeric edits before Frappe's legacy bubble listener can assign
+	// Number("FJD 9,000.00") to the child row.
+	function captureFormattedGridAmount(event) {
+		const target = event.target;
+		const table = tableFor(target);
+		const fieldname = target?.dataset?.fieldname;
+		const numericColumns = new Set(["amount", "expense_amount", "unit_price", "quantity", "frequency_per_month"]);
+		if (!table || !numericColumns.has(fieldname)) return;
+		const field = frappe.web_form?.fields_dict?.[table];
+		const index = Number(target.closest(".grid-row")?.dataset?.idx) - 1;
+		const row = field?.df?.data?.[index];
+		if (!row) return;
+		event.stopImmediatePropagation();
+		row[fieldname] = number(target.value);
+		queue(table === purchaseTable ? "purchase" : "income");
+	}
+	document.addEventListener("input", captureFormattedGridAmount, true);
+	document.addEventListener("change", captureFormattedGridAmount, true);
 
 	function onChanged(event) {
 		const fieldname = event.target?.closest?.("[data-fieldname]")?.dataset?.fieldname;
@@ -396,6 +517,24 @@ def _configure_branch_location_field(web_form):
 		break
 
 
+def _restore_public_table_currency_fields(web_form):
+	"""Undo the temporary Float override used by an earlier app version."""
+	table_columns = {
+		"custom_flexi_income_entries": {"amount": "Amount"},
+		"custom_flexi_living_expenses": {"expense_amount": "Expense Amount"},
+		"custom_flexi_finance_obligations": {"amount": "Amount"},
+		"custom_flexi_purchase_items": {"unit_price": "Unit Price"},
+	}
+	for table in web_form.get("web_form_fields") or []:
+		columns = table_columns.get(table.fieldname)
+		if not columns:
+			continue
+		for field in table.get("fields") or []:
+			if field.get("fieldname") in columns:
+				field.fieldtype = "Currency"
+				field.label = columns[field.fieldname]
+
+
 def _ensure_employment_fields(web_form):
 	"""Expose existing employment fields in a useful order on the public form."""
 	fields = web_form.get("web_form_fields") or []
@@ -444,18 +583,29 @@ def _ensure_employment_fields(web_form):
 def inject_loan_application_duplicate_check():
 	"""Safely install the guard in every published Loan Application Web Form."""
 	path = Path(__file__).parent / "public" / "js" / "loan_application_duplicate_check.js"
-	managed_script = "\n".join([MARKER, path.read_text().strip()])
+	managed_script = "\n".join([MARKER, path.read_text().strip(), MANAGED_SCRIPT_END_MARKER])
 	web_forms = frappe.get_all(
 		"Web Form", filters={"doc_type": "Loan Application", "published": 1}, fields=["name"]
 	)
 	for row in web_forms:
 		web_form = frappe.get_doc("Web Form", row.name)
 		_configure_branch_location_field(web_form)
+		_restore_public_table_currency_fields(web_form)
 		_ensure_employment_fields(web_form)
-		current_script = web_form.client_script or ""
-		# Never rewrite a form already marked as managed. This keeps every
-		# customer-authored form script intact on later migrations.
-		if MARKER not in current_script:
+		current_script = _strip_legacy_calculation_injections(_repair_legacy_number_parsing(web_form.client_script or ""))
+		if MARKER in current_script:
+			# Refresh app-owned code while leaving the site's original Web Form
+			# script intact. Older app versions had no end marker; their original
+			# script starts with this stable Frappe-defaults comment.
+			start = current_script.find(MARKER)
+			end = current_script.find(MANAGED_SCRIPT_END_MARKER, start)
+			if end >= 0:
+				end += len(MANAGED_SCRIPT_END_MARKER)
+			else:
+				end = current_script.find(LEGACY_FORM_SCRIPT_MARKER, start)
+			if end >= 0:
+				current_script = current_script[:start] + managed_script + "\n\n" + current_script[end:]
+		else:
 			# Put the guard first so a later error in the large existing script does
 			# not stop the TIN/email duplicate protection from binding.
 			current_script = "\n\n".join([managed_script, current_script])
@@ -468,3 +618,72 @@ def inject_loan_application_duplicate_check():
 			current_script = "\n\n".join([current_script, EMPLOYMENT_SCRIPT.strip()])
 		web_form.client_script = current_script
 		web_form.save(ignore_permissions=True)
+
+
+def setup_web_form_and_print_formats():
+	"""Apply idempotent public-form and print-format repairs after fixture sync."""
+	inject_loan_application_duplicate_check()
+	from comfort_homes.signed_pack import normalize_customer_print_formats
+
+	normalize_customer_print_formats()
+
+
+def _repair_legacy_number_parsing(script):
+	"""Repair the older Web Form calculation block for formatted Currency.
+
+	Frappe displays a four-digit currency value as ``1,000``. JavaScript's
+	``Number('1,000')`` returns NaN, which then contaminates all totals.
+	"""
+	if "function calculateIncomeAndExpenses()" not in script:
+		return script
+	# A pre-release version used ordinary ``str.replace`` and could match the
+	# ``Number(...)`` suffix inside an already-correct ``flexiSafeNumber(...)``.
+	# Repair that harmless typo before applying the idempotent replacements.
+	script = script.replace("flexiSafeflexiSafeNumber", "flexiSafeNumber")
+	parser = '''
+function flexiSafeNumber(value) {
+    const parsed = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+'''
+	if "function flexiSafeNumber(value)" not in script:
+		position = script.find("function calculateIncomeAndExpenses()")
+		script = script[:position] + parser + "\n" + script[position:]
+
+	replacements = {
+		"Number(row.amount || 0)": "flexiSafeNumber(row.amount)",
+		"Number(row.expense_amount || 0)": "flexiSafeNumber(row.expense_amount)",
+		"Number(row.frequency_per_month || 1)": "flexiSafeNumber(row.frequency_per_month || 1)",
+		"Number(row.quantity || 0)": "flexiSafeNumber(row.quantity)",
+		"Number(row.unit_price || 0)": "flexiSafeNumber(row.unit_price)",
+		"Number(frappe.web_form.get_value(\"custom_flexi_documentation_fee\") || 25)": "flexiSafeNumber(frappe.web_form.get_value(\"custom_flexi_documentation_fee\") || 25)",
+		"Number(frappe.web_form.get_value(\"custom_flexi_admin_fee_rate\") || 2.5)": "flexiSafeNumber(frappe.web_form.get_value(\"custom_flexi_admin_fee_rate\") || 2.5)",
+		"Number(frappe.web_form.get_value(\"custom_flexi_stamp_duty_fee\") || 0)": "flexiSafeNumber(frappe.web_form.get_value(\"custom_flexi_stamp_duty_fee\") || 0)",
+		"Number(frappe.web_form.get_value(\"custom_flexi_other_fee\") || 0)": "flexiSafeNumber(frappe.web_form.get_value(\"custom_flexi_other_fee\") || 0)",
+		"Number(frappe.web_form.get_value(\"custom_flexi_term_months\") || 12)": "flexiSafeNumber(frappe.web_form.get_value(\"custom_flexi_term_months\") || 12)",
+		"Number(frappe.web_form.get_value(\"custom_flexi_interest_rate\") || 0)": "flexiSafeNumber(frappe.web_form.get_value(\"custom_flexi_interest_rate\") || 0)",
+		"Number(frappe.web_form.get_value(\"custom_flexi_selected_dsr\") || 35)": "flexiSafeNumber(frappe.web_form.get_value(\"custom_flexi_selected_dsr\") || 35)",
+	}
+	for old, new in replacements.items():
+		script = re.sub(r"(?<![A-Za-z])" + re.escape(old), new, script)
+	return script
+
+
+def _strip_legacy_calculation_injections(script):
+	"""Remove all earlier app calculation blocks, wherever they were appended."""
+	markers = (
+		"/* comfort_homes: loan application live calculation refresh */",
+		"/* comfort_homes: loan application live calculation refresh v2 */",
+		"/* comfort_homes: loan application live calculation refresh v3 */",
+		"/* comfort_homes: loan application live calculation refresh v4 */",
+		CALCULATION_MARKER,
+	)
+	for marker in markers:
+		while marker in script:
+			start = script.find(marker)
+			end = script.find("\n})();", start)
+			if end < 0:
+				script = script[:start]
+				break
+			script = script[:start] + script[end + len("\n})();") :]
+	return script
