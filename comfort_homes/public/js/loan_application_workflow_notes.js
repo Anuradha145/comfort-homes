@@ -5,10 +5,11 @@ const DEPOSIT_INVOICE_STATES = ["Approved", "Contract Signing", "Awaiting Custom
 
 frappe.ui.form.on("Loan Application", {
 	refresh(frm) {
-		if (frm.is_new() || Number(frm.doc.custom_flexi_deposit_amount || 0) <= 0) return;
+		if (frm.is_new()) return;
 
 		// 1. Only after approval
 		if (!DEPOSIT_INVOICE_STATES.includes(frm.doc.workflow_state)) return;
+		if (frm.__comfortDepositInvoiceActionRegistered) return;
 
 		const addButton = () => {
 			frm.add_custom_button(__("Create Deposit Sales Invoice"), () => {
@@ -30,11 +31,15 @@ frappe.ui.form.on("Loan Application", {
 		const invoice = frm.doc.custom_deposit_sales_invoice;
 		if (!invoice) {
 			addButton();
+			frm.__comfortDepositInvoiceActionRegistered = true;
 			return;
 		}
 		frappe.db.get_value("Sales Invoice", invoice, "docstatus").then((r) => {
 			const docstatus = r && r.message ? r.message.docstatus : null;
-			if (docstatus === 2 || docstatus === null || docstatus === undefined) addButton();
+			if (docstatus === 2 || docstatus === null || docstatus === undefined) {
+				addButton();
+				frm.__comfortDepositInvoiceActionRegistered = true;
+			}
 		});
 	},
 	before_workflow_action(frm) {

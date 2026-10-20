@@ -1,0 +1,12 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
+  "dt": "Loan Application",
+  "enabled": 1,
+  "module": "Custom",
+  "name": "Comfort Homes Loan Application Deposit Invoice",
+  "script": "frappe.ui.form.on(\"Loan Application\", {\n\trefresh(frm) {\n\t\tif (frm.is_new()) return;\n\t\tif (!['Approved', 'Contract Signing', 'Awaiting Customer Signature'].includes(frm.doc.workflow_state)) return;\n\t\tif (frm.__comfortDepositInvoiceActionRegistered) return;\n\t\tconst addButton = () => frm.add_custom_button(__(\"Create Deposit Sales Invoice\"), () => {\n\t\t\tfrappe.call({\n\t\t\t\tmethod: \"comfort_homes.api.create_deposit_sales_invoice\",\n\t\t\t\targs: { loan_application: frm.doc.name },\n\t\t\t\tfreeze: true,\n\t\t\t\tfreeze_message: __(\"Creating draft deposit invoice...\"),\n\t\t\t\tcallback(response) {\n\t\t\t\t\tif (response.message?.name) frappe.set_route(\"Form\", \"Sales Invoice\", response.message.name);\n\t\t\t\t}\n\t\t\t});\n\t\t}, __(\"Create\"));\n\t\tconst invoice = frm.doc.custom_deposit_sales_invoice;\n\t\tif (!invoice) {\n\t\t\taddButton();\n\t\t\tfrm.__comfortDepositInvoiceActionRegistered = true;\n\t\t\treturn;\n\t\t}\n\t\tfrappe.db.get_value(\"Sales Invoice\", invoice, \"docstatus\").then((result) => {\n\t\t\tconst status = result?.message?.docstatus;\n\t\t\tif (status === 2 || status === null || status === undefined) {\n\t\t\t\taddButton();\n\t\t\t\tfrm.__comfortDepositInvoiceActionRegistered = true;\n\t\t\t}\n\t\t});\n\t}\n});\n",
+  "view": "Form"
+ }
+]

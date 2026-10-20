@@ -67,6 +67,39 @@ frappe.ui.form.on("Loan Application", {
 	},
 });
 
+// Keep the deposit action with this confirmed Loan Application Desk asset.
+// The same per-form guard is used by the workflow-notes script, so it will
+// never add a duplicate action on sites that load both scripts.
+frappe.ui.form.on("Loan Application", {
+	refresh(frm) {
+		if (frm.is_new()) return;
+		if (!["Approved", "Contract Signing", "Awaiting Customer Signature"].includes(frm.doc.workflow_state)) return;
+		if (frm.__comfortDepositInvoiceActionV2Registered) return;
+
+		const addButton = () => {
+			frm.add_custom_button(__("Create Deposit Sales Invoice"), () => {
+				frappe.call({
+					method: "comfort_homes.api.create_deposit_sales_invoice",
+					args: { loan_application: frm.doc.name },
+					freeze: true,
+					freeze_message: __("Creating draft deposit invoice..."),
+					callback(response) {
+						if (response.message?.name) frappe.set_route("Form", "Sales Invoice", response.message.name);
+					},
+				});
+			});
+			frm.__comfortDepositInvoiceActionV2Registered = true;
+		};
+
+		const invoice = frm.doc.custom_deposit_sales_invoice;
+		if (!invoice) return addButton();
+		frappe.db.get_value("Sales Invoice", invoice, "docstatus").then((result) => {
+			const status = result?.message?.docstatus;
+			if (status === 2 || status === null || status === undefined) addButton();
+		});
+	},
+});
+
 function comfort_print_pack_html(win, title, documents) {
 	if (!win) {
 		frappe.msgprint(__("Allow pop-ups for this site to open the contract pack."));

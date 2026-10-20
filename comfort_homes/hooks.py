@@ -55,10 +55,11 @@ fixtures = [
 	{
 		"dt": "Client Script",
 		"filters": [["name", "in", [
-			"Flexi Loan Bank Reconciliation",
-			"Flexi Customer Document Signing",
-			"Flexi Customer Document Signing Order",
-		]]],
+		"Flexi Loan Bank Reconciliation",
+		"Flexi Customer Document Signing",
+		"Flexi Customer Document Signing Order",
+		"Comfort Homes Loan Application Deposit Invoice",
+	]]],
 	},
 	{
 		"dt": "Server Script",
