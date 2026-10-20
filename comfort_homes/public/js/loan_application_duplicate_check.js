@@ -304,6 +304,40 @@
 		});
 	}
 
+	function renderDtiMatrix(income, obligations) {
+		const field = frappe.web_form.fields_dict.custom_flexi_dti_matrix;
+		if (!field?.$wrapper) return;
+		const periods = [
+			[__("Weekly"), 12 / 52],
+			[__("Fortnightly"), 12 / 26],
+			[__("Bi-Monthly"), 1 / 2],
+			[__("Monthly"), 1],
+		];
+		const formatCurrency = (value) => `FJD ${money(value).toLocaleString(undefined, {
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2,
+		})}`;
+		const rows = [
+			[__("Income Used for DTI"), income],
+			[__("Current Obligations"), obligations],
+			[__("Income After Current Obligations"), income - obligations],
+			[__("Pre-Application DTI"), income ? obligations / income * 100 : 0, true],
+		];
+		const heading = periods.map(([label]) => `<th>${label}</th>`).join("");
+		const body = rows.map(([label, monthly, isPercent]) => {
+			const cells = periods.map(([, factor]) => {
+				const value = isPercent ? monthly : monthly * factor;
+				return `<td>${isPercent ? `${money(value).toFixed(2)}%` : formatCurrency(value)}</td>`;
+			}).join("");
+			return `<tr><th>${label}</th>${cells}</tr>`;
+		}).join("");
+		field.$wrapper.html(
+			`<div class="flexi-summary-table"><h3>${__("Pre-Application DTI (Debt to Income Ratio)")}</h3>` +
+			`<div class="table-responsive"><table><thead><tr><th>${__("Assessment")}</th>${heading}</tr></thead>` +
+			`<tbody>${body}</tbody></table></div></div>`
+		);
+	}
+
 	function calculateIncomeValues() {
 		const form = frappe.web_form;
 		const incomeRows = form.get_value("custom_flexi_income_entries") || [];
@@ -336,6 +370,7 @@
 		setValue("custom_flexi_pre_dsr", preDsr);
 		setValue("custom_flexi_dsr_margin", money(Math.max(maxDsr - preDsr, 0)));
 		setValue("custom_flexi_weekly_eligibility", money(Math.max((income * maxDsr / 100 - obligations) * 12 / 52, 0)));
+		renderDtiMatrix(income, obligations);
 		form.fields_dict.custom_flexi_income_entries?.refresh?.();
 		form.fields_dict.custom_flexi_living_expenses?.refresh?.();
 		form.fields_dict.custom_flexi_finance_obligations?.refresh?.();
@@ -464,4 +499,17 @@
 	// browser events, and this remains reliable for editable grid rows.
 	document.addEventListener("input", handleChange, true);
 	document.addEventListener("change", handleChange, true);
+
+	// A user can enter the DTI step after values have already been supplied on
+	// the previous page. Draw the matrix from the calculated parent values in
+	// that case as well; do not require another edit or a save.
+	function renderExistingDtiMatrix() {
+		if (!isLoanApplicationWebForm()) return;
+		renderDtiMatrix(
+			number(frappe.web_form.get_value("custom_flexi_dsr_total_income") || frappe.web_form.get_value("custom_flexi_total_monthly_income")),
+			number(frappe.web_form.get_value("custom_flexi_total_finance_obligations"))
+		);
+	}
+	if (frappe.web_form?.events?.on) frappe.web_form.events.on("after_load", () => window.setTimeout(renderExistingDtiMatrix, 0));
+	window.setTimeout(renderExistingDtiMatrix, 700);
 })();

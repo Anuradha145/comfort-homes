@@ -10,7 +10,7 @@ from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 MARKER = "/* comfort_homes: loan application duplicate customer check */"
 MANAGED_SCRIPT_END_MARKER = "/* comfort_homes: end loan application managed script */"
 LEGACY_FORM_SCRIPT_MARKER = "// Frappe v16 Web Forms may not initialize Desk defaults"
-CALCULATION_MARKER = "/* comfort_homes: loan application live calculation refresh v5 */"
+CALCULATION_MARKER = "/* comfort_homes: loan application live calculation refresh v6 */"
 EMPLOYMENT_MARKER = "/* comfort_homes: loan application employment period */"
 EMPLOYMENT_SCRIPT = r'''
 /* comfort_homes: loan application employment period */
@@ -300,7 +300,7 @@ def ensure_install_schema():
 	)
 	frappe.clear_cache(doctype="Loan Application")
 CALCULATION_SCRIPT = r'''
-/* comfort_homes: loan application live calculation refresh v5 */
+/* comfort_homes: loan application live calculation refresh v6 */
 (function () {
 	let refreshTimer;
 	let depositSource;
@@ -336,6 +336,28 @@ CALCULATION_SCRIPT = r'''
 		return ({ Weekly: 52 / 12, Fortnightly: 26 / 12, "Bi-monthly": 2, Monthly: 1 })[frequency] || 1;
 	}
 
+	function renderDtiMatrix(income, obligations) {
+		const field = frappe.web_form?.fields_dict?.custom_flexi_dti_matrix;
+		if (!field?.$wrapper) return;
+		const periods = [["Weekly", 12 / 52], ["Fortnightly", 12 / 26], ["Bi-Monthly", 1 / 2], ["Monthly", 1]];
+		const currency = (value) => `FJD ${money(value).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+		const rows = [
+			["Income Used for DTI", income],
+			["Current Obligations", obligations],
+			["Income After Current Obligations", income - obligations],
+			["Pre-Application DTI", income ? obligations / income * 100 : 0, true],
+		];
+		const heading = periods.map(([label]) => `<th>${label}</th>`).join("");
+		const body = rows.map(([label, monthly, isPercent]) => {
+			const cells = periods.map(([, factor]) => {
+				const value = isPercent ? monthly : monthly * factor;
+				return `<td>${isPercent ? `${money(value).toFixed(2)}%` : currency(value)}</td>`;
+			}).join("");
+			return `<tr><th>${label}</th>${cells}</tr>`;
+		}).join("");
+		field.$wrapper.html(`<div class="flexi-summary-table"><h3>Pre-Application DTI (Debt to Income Ratio)</h3><div class="table-responsive"><table><thead><tr><th>Assessment</th>${heading}</tr></thead><tbody>${body}</tbody></table></div></div>`);
+	}
+
 	function calculateIncomeAndExpensesSafely() {
 		const form = frappe.web_form;
 		const incomeRows = form.get_value("custom_flexi_income_entries") || [];
@@ -369,6 +391,7 @@ CALCULATION_SCRIPT = r'''
 		set("custom_flexi_pre_dsr", preDsr);
 		set("custom_flexi_dsr_margin", Math.max(maxDsr - preDsr, 0));
 		set("custom_flexi_weekly_eligibility", Math.max((income * maxDsr / 100 - obligations) * 12 / 52, 0));
+		renderDtiMatrix(income, obligations);
 		["custom_flexi_income_entries", "custom_flexi_living_expenses", "custom_flexi_finance_obligations"].forEach((fieldname) => {
 			form.fields_dict[fieldname]?.grid?.refresh?.();
 			form.fields_dict[fieldname]?.refresh?.();
@@ -490,6 +513,9 @@ CALCULATION_SCRIPT = r'''
 	// newly-added blank item row causes the legacy table listener to reset it.
 	window.setTimeout(() => {
 		if (!depositSource) depositSource = sourceForDeposit();
+		const income = number(frappe.web_form?.get_value("custom_flexi_dsr_total_income") || frappe.web_form?.get_value("custom_flexi_total_monthly_income"));
+		const obligations = number(frappe.web_form?.get_value("custom_flexi_total_finance_obligations"));
+		renderDtiMatrix(income, obligations);
 	}, 0);
 })();
 '''
@@ -676,6 +702,7 @@ def _strip_legacy_calculation_injections(script):
 		"/* comfort_homes: loan application live calculation refresh v2 */",
 		"/* comfort_homes: loan application live calculation refresh v3 */",
 		"/* comfort_homes: loan application live calculation refresh v4 */",
+		"/* comfort_homes: loan application live calculation refresh v5 */",
 		CALCULATION_MARKER,
 	)
 	for marker in markers:
