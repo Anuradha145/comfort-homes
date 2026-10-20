@@ -338,6 +338,18 @@
 		);
 	}
 
+	function currentDtiAssessment() {
+		const form = frappe.web_form;
+		const income = (form.get_value("custom_flexi_income_entries") || []).reduce((total, row) => {
+			const monthly = number(row.amount) * monthlyFactor(row.frequency);
+			return total + (row.income_type === "Salary Deductions" ? Math.abs(monthly) : monthly);
+		}, 0);
+		const obligations = (form.get_value("custom_flexi_finance_obligations") || []).reduce(
+			(total, row) => total + number(row.amount) * monthlyFactor(row.frequency), 0
+		);
+		return { income: money(income), obligations: money(obligations) };
+	}
+
 	function calculateIncomeValues() {
 		const form = frappe.web_form;
 		const incomeRows = form.get_value("custom_flexi_income_entries") || [];
@@ -505,11 +517,17 @@
 	// that case as well; do not require another edit or a save.
 	function renderExistingDtiMatrix() {
 		if (!isLoanApplicationWebForm()) return;
-		renderDtiMatrix(
-			number(frappe.web_form.get_value("custom_flexi_dsr_total_income") || frappe.web_form.get_value("custom_flexi_total_monthly_income")),
-			number(frappe.web_form.get_value("custom_flexi_total_finance_obligations"))
-		);
+		const assessment = currentDtiAssessment();
+		renderDtiMatrix(assessment.income, assessment.obligations);
 	}
 	if (frappe.web_form?.events?.on) frappe.web_form.events.on("after_load", () => window.setTimeout(renderExistingDtiMatrix, 0));
 	window.setTimeout(renderExistingDtiMatrix, 700);
+	// The legacy form script renders this same HTML field when a page is
+	// selected. Run after that handler so an old script cannot replace live
+	// figures with its initial zero-value table.
+	document.addEventListener("click", (event) => {
+		if (!event.target?.closest?.(".slide-step")?.textContent?.includes("DTI")) return;
+		window.setTimeout(renderExistingDtiMatrix, 250);
+		window.setTimeout(renderExistingDtiMatrix, 900);
+	}, true);
 })();
