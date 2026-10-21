@@ -130,3 +130,27 @@ def apply_loan_application_purchase_values(doc, method=None):
 	# could show correct rows but retain a total from the Item master price.
 	if hasattr(doc, "calculate_taxes_and_totals"):
 		doc.calculate_taxes_and_totals()
+
+
+def apply_purchase_invoice_loan_application(doc, method=None):
+	"""Carry the source Loan Application from a PO into its Purchase Invoice.
+
+	A PI may contain items from several POs.  A single link would be misleading in
+	that case, so it is populated only when all linked PO rows have one application.
+	"""
+	if doc.get("custom_loan_application"):
+		return
+
+	purchase_orders = {item.get("purchase_order") for item in doc.items or [] if item.get("purchase_order")}
+	if not purchase_orders:
+		return
+
+	applications = set()
+	for purchase_order in purchase_orders:
+		order = frappe.get_doc("Purchase Order", purchase_order)
+		application = _application_from_purchase_order(order)
+		if application:
+			applications.add(application)
+
+	if len(applications) == 1:
+		doc.custom_loan_application = applications.pop()
