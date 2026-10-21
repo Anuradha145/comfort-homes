@@ -81,6 +81,40 @@ def _application_from_purchase_order(doc):
 	return None
 
 
+def _primary_customer_address(customer):
+	"""Return the selected Customer address, falling back to any linked address."""
+	if not customer:
+		return None
+
+	addresses = frappe.db.get_value(
+		"Customer", customer, ["customer_primary_address", "primary_address"], as_dict=True
+	) or {}
+	for address in (addresses.get("customer_primary_address"), addresses.get("primary_address")):
+		if address and frappe.db.exists("Address", address):
+			return address
+
+	return frappe.db.get_value(
+		"Dynamic Link",
+		{"parenttype": "Address", "link_doctype": "Customer", "link_name": customer},
+		"parent",
+	)
+
+
+def _apply_customer_shipping_address(doc, customer):
+	"""Use the customer's primary address as the delivery address on purchase documents."""
+	address_name = _primary_customer_address(customer)
+	if not address_name or not frappe.db.exists("Address", address_name):
+		return
+
+	doc.shipping_address = address_name
+	doc.shipping_address_display = frappe.get_doc("Address", address_name).get_display()
+
+
+def apply_purchase_order_customer_address(doc, method=None):
+	"""Set the customer delivery address on an HP Purchase Order."""
+	_apply_customer_shipping_address(doc, doc.get("customer"))
+
+
 def apply_loan_application_purchase_values(doc, method=None):
 	"""Keep a workflow-generated PO priced exactly from its HP application rows.
 
@@ -154,3 +188,27 @@ def apply_purchase_invoice_loan_application(doc, method=None):
 
 	if len(applications) == 1:
 		doc.custom_loan_application = applications.pop()
+
+
+def apply_purchase_invoice_customer_address(doc, method=None):
+	"""Carry the customer delivery address from the source PO onto the PI."""
+	purchase_orders = {item.get("purchase_order") for item in doc.items or [] if item.get("purchase_order")}
+	customers = {
+		frappe.db.get_value("Purchase Order", purchase_order, "customer")
+		for purchase_order in purchase_orders
+	}
+	customers.discard(None)
+
+	if len(customers) == 1:
+		_apply_customer_shipping_address(doc, customers.pop())
+		return
+
+	# A PI created from one application normally has one PO/customer.  This
+	# fallback also covers generated PIs where the PO link sits outside the item.
+	application = doc.get("custom_loan_application")
+	if application:
+		applicant, applicant_type = frappe.db.get_value(
+			"Loan Application", application, ["applicant", "applicant_type"]
+		) or (None, None)
+		if applicant and applicant_type == "Customer":
+			_apply_customer_shipping_address(doc, applicant)
