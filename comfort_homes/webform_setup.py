@@ -297,75 +297,45 @@ def ensure_install_schema():
 			],
 			"Purchase Order": [
 				{
-					"fieldname": "custom_customer_address_section",
-					"label": "Customer Delivery Address",
-					"fieldtype": "Section Break",
-					"insert_after": "customer",
-				},
-				{
 					"fieldname": "custom_loan_application",
 					"label": "Loan Application",
 					"fieldtype": "Link",
 					"options": "Loan Application",
-					"insert_after": "custom_customer_address_section",
+					"insert_after": "customer",
 					"read_only": 1,
 					"no_copy": 1,
 					"in_standard_filter": 1,
 					"search_index": 1,
-				},
-				{
-					"fieldname": "custom_customer_address",
-					"label": "Customer Address",
-					"fieldtype": "Link",
-					"options": "Address",
-					"insert_after": "custom_loan_application",
-					"read_only": 1,
-				},
-				{
-					"fieldname": "custom_customer_address_display",
-					"label": "Customer Address Details",
-					"fieldtype": "Text Editor",
-					"insert_after": "custom_customer_address",
-					"read_only": 1,
 				},
 			],
 			"Purchase Invoice": [
 				{
-					"fieldname": "custom_customer_address_section",
-					"label": "Customer Delivery Address",
-					"fieldtype": "Section Break",
-					"insert_after": "supplier",
-				},
-				{
 					"fieldname": "custom_loan_application",
 					"label": "Loan Application",
 					"fieldtype": "Link",
 					"options": "Loan Application",
-					"insert_after": "custom_customer_address_section",
+					"insert_after": "supplier",
 					"read_only": 1,
 					"no_copy": 1,
 					"in_standard_filter": 1,
 					"search_index": 1,
-				},
-				{
-					"fieldname": "custom_customer_address",
-					"label": "Customer Address",
-					"fieldtype": "Link",
-					"options": "Address",
-					"insert_after": "custom_loan_application",
-					"read_only": 1,
-				},
-				{
-					"fieldname": "custom_customer_address_display",
-					"label": "Customer Address Details",
-					"fieldtype": "Text Editor",
-					"insert_after": "custom_customer_address",
-					"read_only": 1,
 				},
 			],
 		},
 		update=True,
 	)
+	# These fields were briefly added for customer delivery addresses on purchase
+	# documents.  Purchase documents must retain their normal company/supplier
+	# address behaviour, so hide them on sites which received that interim build.
+	for doctype in ("Purchase Order", "Purchase Invoice"):
+		for fieldname in (
+			"custom_customer_address_section",
+			"custom_customer_address",
+			"custom_customer_address_display",
+		):
+			custom_field = f"{doctype}-{fieldname}"
+			if frappe.db.exists("Custom Field", custom_field):
+				frappe.db.set_value("Custom Field", custom_field, "hidden", 1, update_modified=False)
 	frappe.clear_cache(doctype="Loan Application")
 	frappe.clear_cache(doctype="Purchase Order")
 	frappe.clear_cache(doctype="Purchase Invoice")

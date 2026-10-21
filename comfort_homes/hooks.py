@@ -108,14 +108,10 @@ doc_events = {
 	"Loan": {"before_validate": "comfort_homes.loan_mapping.apply_loan_application_values"},
 	"Loan Disbursement": {"before_validate": "comfort_homes.loan_mapping.apply_loan_values_to_disbursement"},
 	"Purchase Order": {
-		"before_validate": "comfort_homes.loan_mapping.apply_purchase_order_customer_address",
 		"before_save": "comfort_homes.loan_mapping.apply_loan_application_purchase_values",
 	},
 	"Purchase Invoice": {
-		"before_validate": [
-			"comfort_homes.loan_mapping.apply_purchase_invoice_loan_application",
-			"comfort_homes.loan_mapping.apply_purchase_invoice_customer_address",
-		],
+		"before_validate": "comfort_homes.loan_mapping.apply_purchase_invoice_loan_application",
 	},
 	"Loan Application": {
 		"before_insert": "comfort_homes.loan_application_workflow.validate_public_application_not_existing_customer",
