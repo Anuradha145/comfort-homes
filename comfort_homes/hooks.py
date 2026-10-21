@@ -42,7 +42,7 @@ fixtures = [
 		# Flexi extends Lending's standard DocTypes through Custom Field records.
 		# Keeping the complete set here makes a fresh installation reproduce the
 		# same Loan Application layout and database columns as the working site.
-		"filters": [["dt", "in", ["Loan Application", "Loan", "Loan Disbursement", "Sales Invoice", "Customer", "Contact"]]],
+		"filters": [["dt", "in", ["Loan Application", "Loan", "Loan Disbursement", "Sales Invoice", "Purchase Order", "Customer", "Contact"]]],
 	},
 	{
 		"dt": "Property Setter",
@@ -104,6 +104,9 @@ fixtures = [
 doc_events = {
 	"Loan": {"before_validate": "comfort_homes.loan_mapping.apply_loan_application_values"},
 	"Loan Disbursement": {"before_validate": "comfort_homes.loan_mapping.apply_loan_values_to_disbursement"},
+	"Purchase Order": {
+		"before_save": "comfort_homes.loan_mapping.apply_loan_application_purchase_values",
+	},
 	"Loan Application": {
 		"before_insert": "comfort_homes.loan_application_workflow.validate_public_application_not_existing_customer",
 		"before_validate": [

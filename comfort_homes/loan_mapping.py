@@ -1,6 +1,9 @@
-"""Flow approved application terms into Loans and Loan Disbursements."""
+"""Flow approved application terms into Loans, disbursements, and HP purchase orders."""
+
+import re
 
 import frappe
+from frappe.utils import flt
 
 
 FREQUENCY_MAP = {
@@ -58,3 +61,72 @@ def apply_loan_values_to_disbursement(doc, method=None):
 	doc.repayment_frequency = loan.get("repayment_frequency") or doc.repayment_frequency
 	doc.cost_center = loan.get("cost_center") or doc.cost_center
 	doc.mode_of_payment = loan.get("custom_mode_of_payment") or doc.mode_of_payment
+
+
+def _application_from_purchase_order(doc):
+	"""Return the source application for a PO produced by the HP workflow.
+
+	Older POs only have the application number in Remarks.  Keeping that fallback
+	means the new link is populated without requiring a second, fragile PO script.
+	"""
+	application = doc.get("custom_loan_application")
+	if application:
+		return application
+
+	match = re.search(r"Loan Application:\s*([^|\n]+)", doc.get("remarks") or "")
+	application = match.group(1).strip() if match else None
+	if application and frappe.db.exists("Loan Application", application):
+		doc.custom_loan_application = application
+		return application
+	return None
+
+
+def apply_loan_application_purchase_values(doc, method=None):
+	"""Keep a workflow-generated PO priced exactly from its HP application rows.
+
+	The generic ``HP Product`` item has a standard price.  ERPNext can apply that
+	price when a row is zero-valued, which turns a FJD 0.00 free item into a charge.
+	For a PO generated from a Loan Application, the application is the only price
+	source: every quantity and rate, including zero, is copied again immediately
+	before saving the PO.
+	"""
+	application_name = _application_from_purchase_order(doc)
+	if not application_name:
+		return
+
+	application = frappe.get_doc("Loan Application", application_name)
+	source_items = application.get("custom_flexi_purchase_items") or []
+	if len(doc.items or []) != len(source_items):
+		# This is a manually changed PO.  Never guess which application item maps
+		# to which PO row and risk replacing a legitimate purchasing change.
+		return
+
+	doc.ignore_pricing_rule = 1
+	doc.flags.ignore_pricing_rule = True
+	for po_item, application_item in zip(doc.items, source_items):
+		quantity = flt(application_item.get("quantity"))
+		rate = flt(application_item.get("unit_price"))
+		amount = quantity * rate
+
+		po_item.qty = quantity
+		po_item.rate = rate
+		po_item.price_list_rate = rate
+		po_item.rate_with_margin = rate
+		po_item.base_price_list_rate = rate
+		po_item.base_rate_with_margin = rate
+		po_item.discount_percentage = 0
+		po_item.discount_amount = 0
+		po_item.margin_type = ""
+		po_item.margin_rate_or_amount = 0
+		po_item.amount = amount
+		po_item.base_rate = rate
+		po_item.base_amount = amount
+		po_item.net_rate = rate
+		po_item.net_amount = amount
+		po_item.base_net_rate = rate
+		po_item.base_net_amount = amount
+
+	# Totals must be recalculated after the last pricing pass, otherwise the PO
+	# could show correct rows but retain a total from the Item master price.
+	if hasattr(doc, "calculate_taxes_and_totals"):
+		doc.calculate_taxes_and_totals()

@@ -294,11 +294,25 @@ def ensure_install_schema():
 					"options": "Loan Customer Agreement",
 					"insert_after": "documents_tab",
 				}
-			]
+			],
+			"Purchase Order": [
+				{
+					"fieldname": "custom_loan_application",
+					"label": "Loan Application",
+					"fieldtype": "Link",
+					"options": "Loan Application",
+					"insert_after": "customer",
+					"read_only": 1,
+					"no_copy": 1,
+					"in_standard_filter": 1,
+					"search_index": 1,
+				}
+			],
 		},
 		update=True,
 	)
 	frappe.clear_cache(doctype="Loan Application")
+	frappe.clear_cache(doctype="Purchase Order")
 CALCULATION_SCRIPT = r'''
 /* comfort_homes: loan application live calculation refresh v7 */
 (function () {
