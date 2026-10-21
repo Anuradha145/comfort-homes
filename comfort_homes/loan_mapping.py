@@ -100,19 +100,23 @@ def _primary_customer_address(customer):
 	)
 
 
-def _apply_customer_shipping_address(doc, customer):
-	"""Use the customer's primary address as the delivery address on purchase documents."""
+def _apply_customer_address(doc, customer):
+	"""Copy the customer address into app-owned purchase document fields.
+
+	ERPNext's standard purchase ``shipping_address`` accepts only an Address
+	linked to the company. Customer delivery addresses must not be put there.
+	"""
 	address_name = _primary_customer_address(customer)
 	if not address_name or not frappe.db.exists("Address", address_name):
 		return
 
-	doc.shipping_address = address_name
-	doc.shipping_address_display = frappe.get_doc("Address", address_name).get_display()
+	doc.custom_customer_address = address_name
+	doc.custom_customer_address_display = frappe.get_doc("Address", address_name).get_display()
 
 
 def apply_purchase_order_customer_address(doc, method=None):
 	"""Set the customer delivery address on an HP Purchase Order."""
-	_apply_customer_shipping_address(doc, doc.get("customer"))
+	_apply_customer_address(doc, doc.get("customer"))
 
 
 def apply_loan_application_purchase_values(doc, method=None):
@@ -200,7 +204,7 @@ def apply_purchase_invoice_customer_address(doc, method=None):
 	customers.discard(None)
 
 	if len(customers) == 1:
-		_apply_customer_shipping_address(doc, customers.pop())
+		_apply_customer_address(doc, customers.pop())
 		return
 
 	# A PI created from one application normally has one PO/customer.  This
@@ -211,4 +215,20 @@ def apply_purchase_invoice_customer_address(doc, method=None):
 			"Loan Application", application, ["applicant", "applicant_type"]
 		) or (None, None)
 		if applicant and applicant_type == "Customer":
-			_apply_customer_shipping_address(doc, applicant)
+			_apply_customer_address(doc, applicant)
+
+
+def get_loan_application_dashboard_data(data=None):
+	"""Add app-owned PO and PI links to Loan Application Connections."""
+	data = frappe._dict(data or {})
+	transactions = data.setdefault("transactions", [])
+	if not any("Purchase Order" in group.get("items", []) for group in transactions):
+		transactions.append({"label": "Purchasing", "items": ["Purchase Order", "Purchase Invoice"]})
+
+	data.setdefault("non_standard_fieldnames", {}).update(
+		{
+			"Purchase Order": "custom_loan_application",
+			"Purchase Invoice": "custom_loan_application",
+		}
+	)
+	return data

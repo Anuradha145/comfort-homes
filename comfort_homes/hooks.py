@@ -20,6 +20,9 @@ doctype_js = {
 		"public/js/loan_application_signed_pack.js",
 	]
 }
+override_doctype_dashboards = {
+	"Loan Application": "comfort_homes.loan_mapping.get_loan_application_dashboard_data",
+}
 after_migrate = [
 	"comfort_homes.webform_setup.inject_loan_application_duplicate_check",
 	"comfort_homes.co_applicant.ensure_loan_application_fields",
