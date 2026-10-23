@@ -184,3 +184,350 @@
 	initialiseWhenReady();
 	bindDocumentInputChecks();
 })();
+
+/*
+ * Public loan application calculation refresh.
+ *
+ * Web Form child tables do not consistently emit `frappe.web_form.on` events
+ * while a user is typing.  The application already owns the finance formula
+ * (`calculateFinanceSummary`); this small bridge only makes sure that formula
+ * is run after the grid has accepted the user's latest value.
+ */
+(function () {
+	if (window.__comfortHomesLoanCalculationRefreshLoaded) return;
+	window.__comfortHomesLoanCalculationRefreshLoaded = true;
+
+	let refreshTimer;
+	// No source is assumed until the applicant explicitly changes a deposit
+	// field.  A form that starts with 10% and zero dollars must calculate the
+	// deposit from the percentage once purchase items are entered.
+	let depositSource;
+	const purchaseTable = "custom_flexi_purchase_items";
+	const incomeTables = new Set([
+		"custom_flexi_income_entries",
+		"custom_flexi_living_expenses",
+		"custom_flexi_finance_obligations",
+	]);
+	const financeFields = new Set([
+		"custom_flexi_deposit_amount",
+		"custom_flexi_deposit_percent",
+		"custom_flexi_surcharge_rate",
+		"custom_flexi_documentation_fee",
+		"custom_flexi_admin_fee_rate",
+		"custom_flexi_stamp_duty_fee",
+		"custom_flexi_other_fee",
+		"custom_flexi_term_months",
+		"custom_flexi_interest_rate",
+		"custom_flexi_payment_period",
+		"custom_flexi_selected_dsr",
+		"loan_product",
+	]);
+
+	function isLoanApplicationWebForm() {
+		return window.location.pathname.replace(/\/$/, "").startsWith("/loan-application") && window.frappe?.web_form;
+	}
+
+	function number(value) {
+		const parsed = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
+		return Number.isFinite(parsed) ? parsed : 0;
+	}
+
+	function money(value) {
+		return Math.round((number(value) + Number.EPSILON) * 100) / 100;
+	}
+
+	function tableFor(target) {
+		return [purchaseTable, ...incomeTables].find((fieldname) =>
+			target?.closest?.(`[data-fieldname="${fieldname}"]`)
+		);
+	}
+
+	function setChildValue(row, fieldname, value) {
+		if (money(row[fieldname]) === money(value)) return;
+		row[fieldname] = value;
+		if (row.doctype && row.name && frappe.model?.set_value) {
+			frappe.model.set_value(row.doctype, row.name, fieldname, value);
+		}
+	}
+
+	function synchronisePurchaseRows() {
+		const form = frappe.web_form;
+		const rows = form.get_value(purchaseTable) || [];
+		const purchaseValue = rows.reduce((total, row) => {
+			const lineTotal = money(number(row.quantity) * number(row.unit_price));
+			setChildValue(row, "total_amount", lineTotal);
+			return total + lineTotal;
+		}, 0);
+		form.set_value("custom_flexi_cash_price", money(purchaseValue));
+		form.fields_dict[purchaseTable]?.refresh?.();
+	}
+
+	function triggerFormCalculation(fieldname) {
+		const events = frappe.web_form?.events;
+		if (events?.trigger) {
+			events.trigger(fieldname);
+			return true;
+		}
+		return false;
+	}
+
+	function currentDepositSource() {
+		if (depositSource) return depositSource;
+		const amount = number(frappe.web_form.get_value("custom_flexi_deposit_amount"));
+		const percent = number(frappe.web_form.get_value("custom_flexi_deposit_percent"));
+		return !amount && percent ? "percent" : "amount";
+	}
+
+	function monthlyFactor(frequency) {
+		return ({ Weekly: 52 / 12, Fortnightly: 26 / 12, "Bi-monthly": 2, Monthly: 1 })[frequency] || 1;
+	}
+
+	function setValue(fieldname, value) {
+		if (!frappe.web_form.fields_dict[fieldname]) return;
+		const current = frappe.web_form.get_value(fieldname);
+		if (typeof value === "number" && money(current) === money(value)) return;
+		if (current === value) return;
+		frappe.web_form.set_value(fieldname, value);
+	}
+
+	function updateHirePurchaseOptionTable(values) {
+		const rows = document.querySelectorAll(".flexi-hp-options-table tbody tr");
+		if (rows.length < 2) return;
+		const keys = ["weekly", "fortnightly", "bimonthly", "monthly"];
+		keys.forEach((key, index) => {
+			const count = rows[0].children[index + 1];
+			const amount = rows[1].children[index + 1];
+			if (count) count.textContent = String(values[`${key}_instalments`]);
+			if (amount) amount.textContent = `FJD ${money(values[`${key}_instalment_amount`]).toLocaleString(undefined, {
+				minimumFractionDigits: 2, maximumFractionDigits: 2,
+			})}`;
+		});
+	}
+
+	function renderDtiMatrix(income, obligations) {
+		const field = frappe.web_form.fields_dict.custom_flexi_dti_matrix;
+		if (!field?.$wrapper) return;
+		const periods = [
+			[__("Weekly"), 12 / 52],
+			[__("Fortnightly"), 12 / 26],
+			[__("Bi-Monthly"), 1 / 2],
+			[__("Monthly"), 1],
+		];
+		const formatCurrency = (value) => `FJD ${money(value).toLocaleString(undefined, {
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2,
+		})}`;
+		const rows = [
+			[__("Income Used for DTI"), income],
+			[__("Current Obligations"), obligations],
+			[__("Income After Current Obligations"), income - obligations],
+			[__("Pre-Application DTI"), income ? obligations / income * 100 : 0, true],
+		];
+		const heading = periods.map(([label]) => `<th>${label}</th>`).join("");
+		const body = rows.map(([label, monthly, isPercent]) => {
+			const cells = periods.map(([, factor]) => {
+				const value = isPercent ? monthly : monthly * factor;
+				return `<td>${isPercent ? `${money(value).toFixed(2)}%` : formatCurrency(value)}</td>`;
+			}).join("");
+			return `<tr><th>${label}</th>${cells}</tr>`;
+		}).join("");
+		field.$wrapper.html(
+			`<div class="flexi-summary-table"><h3>${__("Pre-Application DTI (Debt to Income Ratio)")}</h3>` +
+			`<div class="table-responsive"><table><thead><tr><th>${__("Assessment")}</th>${heading}</tr></thead>` +
+			`<tbody>${body}</tbody></table></div></div>`
+		);
+	}
+
+	function currentDtiAssessment() {
+		const form = frappe.web_form;
+		const income = (form.get_value("custom_flexi_income_entries") || []).reduce((total, row) => {
+			const monthly = number(row.amount) * monthlyFactor(row.frequency);
+			return total + (row.income_type === "Salary Deductions" ? Math.abs(monthly) : monthly);
+		}, 0);
+		const obligations = (form.get_value("custom_flexi_finance_obligations") || []).reduce(
+			(total, row) => total + number(row.amount) * monthlyFactor(row.frequency), 0
+		);
+		return { income: money(income), obligations: money(obligations) };
+	}
+
+	function calculateIncomeValues() {
+		const form = frappe.web_form;
+		const incomeRows = form.get_value("custom_flexi_income_entries") || [];
+		const expenseRows = form.get_value("custom_flexi_living_expenses") || [];
+		const obligationRows = form.get_value("custom_flexi_finance_obligations") || [];
+		const income = incomeRows.reduce((sum, row) => {
+			const monthlyAmount = money(number(row.amount) * monthlyFactor(row.frequency));
+			setChildValue(row, "monthly_amount", monthlyAmount);
+			return sum + (row.income_type === "Salary Deductions" ? Math.abs(monthlyAmount) : monthlyAmount);
+		}, 0);
+		const expenses = expenseRows.reduce((sum, row) => {
+			const monthlyAmount = money(number(row.expense_amount) * number(row.frequency_per_month || 1));
+			setChildValue(row, "monthly_amount", monthlyAmount);
+			return sum + monthlyAmount;
+		}, 0);
+		const obligations = obligationRows.reduce((sum, row) => {
+			const monthlyAmount = money(number(row.amount) * monthlyFactor(row.frequency));
+			setChildValue(row, "monthly_amount", monthlyAmount);
+			return sum + monthlyAmount;
+		}, 0);
+		setValue("custom_flexi_total_monthly_income", money(income));
+		setValue("custom_flexi_total_annual_income", money(income * 12));
+		setValue("custom_flexi_total_monthly_expenses", money(expenses));
+		setValue("custom_flexi_net_monthly_income", money(income - expenses));
+		setValue("custom_flexi_dsr_total_income", money(income));
+		setValue("custom_flexi_total_finance_obligations", money(obligations));
+		setValue("custom_flexi_dsr_net_income", money(income - obligations));
+		const maxDsr = number(form.get_value("custom_flexi_selected_dsr")) || 35;
+		const preDsr = income ? money(obligations / income * 100) : 0;
+		setValue("custom_flexi_pre_dsr", preDsr);
+		setValue("custom_flexi_dsr_margin", money(Math.max(maxDsr - preDsr, 0)));
+		setValue("custom_flexi_weekly_eligibility", money(Math.max((income * maxDsr / 100 - obligations) * 12 / 52, 0)));
+		renderDtiMatrix(income, obligations);
+		form.fields_dict.custom_flexi_income_entries?.refresh?.();
+		form.fields_dict.custom_flexi_living_expenses?.refresh?.();
+		form.fields_dict.custom_flexi_finance_obligations?.refresh?.();
+		return { income, obligations };
+	}
+
+	function calculateFinanceValues(assessment = {}) {
+		const form = frappe.web_form;
+		const items = form.get_value(purchaseTable) || [];
+		const purchaseValue = money(items.reduce((sum, row) => sum + number(row.quantity) * number(row.unit_price), 0));
+		items.forEach((row) => setChildValue(row, "total_amount", money(number(row.quantity) * number(row.unit_price))));
+		const surchargeRate = Math.max(number(form.get_value("custom_flexi_surcharge_rate")), 0);
+		const surchargeAmount = money(purchaseValue * surchargeRate / 100);
+		const source = currentDepositSource();
+		const enteredPercent = number(form.get_value("custom_flexi_deposit_percent"));
+		const enteredAmount = number(form.get_value("custom_flexi_deposit_amount"));
+		const depositAmount = source === "percent"
+			? Math.min(Math.ceil(Math.max(purchaseValue * enteredPercent / 100, 0)), purchaseValue)
+			: Math.min(Math.max(enteredAmount, 0), purchaseValue);
+		const depositPercent = source === "percent"
+			? enteredPercent
+			: (purchaseValue ? money(depositAmount / purchaseValue * 100) : 0);
+		const afterDeposit = money(Math.max(purchaseValue - depositAmount, 0) + surchargeAmount);
+		const documentationFee = number(form.get_value("custom_flexi_documentation_fee") || 25);
+		const adminFeeRate = number(form.get_value("custom_flexi_admin_fee_rate") || 2.5);
+		const adminFee = money(afterDeposit * adminFeeRate / 100);
+		const stampDuty = number(form.get_value("custom_flexi_stamp_duty_fee"));
+		const otherFee = number(form.get_value("custom_flexi_other_fee"));
+		const financed = purchaseValue ? money(afterDeposit + documentationFee + adminFee + stampDuty + otherFee) : 0;
+		const months = number(form.get_value("custom_flexi_term_months") || 12);
+		const interestRate = number(form.get_value("custom_flexi_interest_rate"));
+		const termCharges = money(financed * interestRate / 100 * months / 12);
+		const totalRepayment = money(financed + termCharges);
+		const values = {
+			weekly_instalments: Math.round(months * 52 / 12),
+			fortnightly_instalments: Math.round(months * 26 / 12),
+			bimonthly_instalments: months * 2,
+			monthly_instalments: months,
+		};
+		values.weekly_instalment_amount = values.weekly_instalments ? money(totalRepayment / values.weekly_instalments) : 0;
+		values.fortnightly_instalment_amount = values.fortnightly_instalments ? money(totalRepayment / values.fortnightly_instalments) : 0;
+		values.bimonthly_instalment_amount = values.bimonthly_instalments ? money(totalRepayment / values.bimonthly_instalments) : 0;
+		values.monthly_instalment_amount = values.monthly_instalments ? money(totalRepayment / values.monthly_instalments) : 0;
+		const period = form.get_value("custom_flexi_payment_period");
+		const selectedMonthly = {
+			Weekly: values.weekly_instalment_amount * 52 / 12,
+			Fortnightly: values.fortnightly_instalment_amount * 26 / 12,
+			"Bi-monthly": values.bimonthly_instalment_amount * 2,
+			Monthly: values.monthly_instalment_amount,
+		}[period] || values.monthly_instalment_amount;
+		const income = assessment.income ?? number(form.get_value("custom_flexi_total_monthly_income"));
+		const obligations = assessment.obligations ?? number(form.get_value("custom_flexi_total_finance_obligations"));
+		const maxDsr = number(form.get_value("custom_flexi_selected_dsr")) || 35;
+		const weeklyEligibility = Math.max((income * maxDsr / 100 - obligations) * 12 / 52, 0);
+		const postDsr = income ? money((obligations + selectedMonthly) / income * 100) : 0;
+		const assessed = income > 0 && totalRepayment > 0;
+		const eligible = assessed && values.weekly_instalment_amount <= weeklyEligibility && postDsr <= maxDsr;
+		const parentValues = {
+			custom_flexi_cash_price: purchaseValue,
+			custom_flexi_surcharge_amount: surchargeAmount,
+			custom_flexi_full_value: money(purchaseValue + surchargeAmount),
+			custom_flexi_deposit_amount: money(depositAmount),
+			custom_flexi_deposit_percent: money(depositPercent),
+			custom_flexi_value_after_deposit: afterDeposit,
+			loan_amount: financed,
+			custom_flexi_documentation_fee: money(documentationFee),
+			custom_flexi_admin_fee: adminFee,
+			custom_flexi_stamp_duty_fee: money(stampDuty),
+			custom_flexi_net_amount_financed: financed,
+			custom_flexi_term_charges: termCharges,
+			custom_flexi_total_receivable: totalRepayment,
+			custom_flexi_weekly_instalments: values.weekly_instalments,
+			custom_flexi_weekly_instalment_amount: values.weekly_instalment_amount,
+			custom_flexi_fortnightly_instalments: values.fortnightly_instalments,
+			custom_flexi_fortnightly_instalment_amount: values.fortnightly_instalment_amount,
+			custom_flexi_bimonthly_instalments: values.bimonthly_instalments,
+			custom_flexi_bimonthly_instalment_amount: values.bimonthly_instalment_amount,
+			custom_flexi_monthly_instalments: values.monthly_instalments,
+			custom_flexi_monthly_instalment_amount: values.monthly_instalment_amount,
+			custom_flexi_post_dsr: postDsr,
+			custom_flexi_eligibility_status: assessed ? (eligible ? "Achieved" : "Not Achieved") : "Not Assessed",
+			repayment_periods: values.monthly_instalments,
+			repayment_amount: values.monthly_instalment_amount,
+			total_payable_amount: totalRepayment,
+			total_payable_interest: termCharges,
+		};
+		Object.entries(parentValues).forEach(([fieldname, value]) => setValue(fieldname, value));
+		form.fields_dict[purchaseTable]?.refresh?.();
+		updateHirePurchaseOptionTable(values);
+	}
+
+	function recalculate(kind) {
+		if (!isLoanApplicationWebForm()) return;
+		const assessment = kind === "income" ? calculateIncomeValues() : {};
+		calculateFinanceValues(assessment);
+	}
+
+	function queueRecalculation(kind) {
+		window.clearTimeout(refreshTimer);
+		// Let Frappe finish its own grid/control change cycle first.  Some
+		// Currency controls schedule an older parent calculation for ~100 ms;
+		// running after it ensures the current keystroke is the final value.
+		refreshTimer = window.setTimeout(() => recalculate(kind), 450);
+	}
+
+	function handleChange(event) {
+		if (!isLoanApplicationWebForm()) return;
+		const target = event.target;
+		const fieldname = target?.closest?.("[data-fieldname]")?.dataset?.fieldname;
+		const table = tableFor(target);
+		if (table === purchaseTable) {
+			queueRecalculation("purchase");
+			return;
+		}
+		if (incomeTables.has(table)) {
+			queueRecalculation("income");
+			return;
+		}
+		if (!financeFields.has(fieldname)) return;
+		if (fieldname === "custom_flexi_deposit_percent") depositSource = "percent";
+		if (fieldname === "custom_flexi_deposit_amount") depositSource = "amount";
+		queueRecalculation("finance");
+	}
+
+	// Capture both input and change: Currency and Data controls use different
+	// browser events, and this remains reliable for editable grid rows.
+	document.addEventListener("input", handleChange, true);
+	document.addEventListener("change", handleChange, true);
+
+	// A user can enter the DTI step after values have already been supplied on
+	// the previous page. Draw the matrix from the calculated parent values in
+	// that case as well; do not require another edit or a save.
+	function renderExistingDtiMatrix() {
+		if (!isLoanApplicationWebForm()) return;
+		const assessment = currentDtiAssessment();
+		renderDtiMatrix(assessment.income, assessment.obligations);
+	}
+	if (frappe.web_form?.events?.on) frappe.web_form.events.on("after_load", () => window.setTimeout(renderExistingDtiMatrix, 0));
+	window.setTimeout(renderExistingDtiMatrix, 700);
+	// The legacy form script renders this same HTML field when a page is
+	// selected. Run after that handler so an old script cannot replace live
+	// figures with its initial zero-value table.
+	document.addEventListener("click", (event) => {
+		if (!event.target?.closest?.(".slide-step")?.textContent?.includes("DTI")) return;
+		window.setTimeout(renderExistingDtiMatrix, 250);
+		window.setTimeout(renderExistingDtiMatrix, 900);
+	}, true);
+})();

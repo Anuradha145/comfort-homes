@@ -1,0 +1,128 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-07-30 11:53:23.766815",
+  "name": "Approve",
+  "workflow_action_name": "Approve"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-07-30 11:53:23.767803",
+  "name": "Reject",
+  "workflow_action_name": "Reject"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-08-27 21:28:16.407634",
+  "name": "Activate Loan",
+  "workflow_action_name": "Activate Loan"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-08-27 21:28:16.408459",
+  "name": "Generate LPO",
+  "workflow_action_name": "Generate LPO"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-08-27 21:28:16.409261",
+  "name": "Approve LPO",
+  "workflow_action_name": "Approve LPO"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-08-27 21:28:16.410085",
+  "name": "Send LPO to Supplier",
+  "workflow_action_name": "Send LPO to Supplier"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-08-27 21:28:16.411706",
+  "name": "Confirm Delivery",
+  "workflow_action_name": "Confirm Delivery"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-08-27 21:28:16.412501",
+  "name": "Receive Delivery Documents",
+  "workflow_action_name": "Receive Delivery Documents"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-08-27 21:28:16.414165",
+  "name": "Verify Zero Balance",
+  "workflow_action_name": "Verify Zero Balance"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-08-27 21:28:16.402411",
+  "name": "Submit for Approval",
+  "workflow_action_name": "Submit for Approval"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-08-27 21:28:16.406788",
+  "name": "Compliance Sign-off",
+  "workflow_action_name": "Compliance Sign-off"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-09-25 20:55:53.261287",
+  "name": "Submit for Review",
+  "workflow_action_name": "Submit for Review"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-09-25 20:56:03.174939",
+  "name": "Director Approve",
+  "workflow_action_name": "Director Approve"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-09-25 20:56:12.323145",
+  "name": "Director Reject",
+  "workflow_action_name": "Director Reject"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-09-25 20:56:21.797474",
+  "name": "Send to Contract Signing",
+  "workflow_action_name": "Send to Contract Signing"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-09-25 20:56:32.849630",
+  "name": "Director Compliance Sign-off",
+  "workflow_action_name": "Director Compliance Sign-off"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-09-25 20:56:42.056617",
+  "name": "Resubmit",
+  "workflow_action_name": "Resubmit"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2025-06-27 16:13:36.773584",
+  "name": "Initiate",
+  "workflow_action_name": "Initiate"
+ }
+]

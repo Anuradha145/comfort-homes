@@ -1,41 +1,102 @@
-/* Contract pack download, chosen by the "Download PDF With Signed Documents?" field:
- *   Yes -> Signed Contract Pack (PDF), shown once every document is Completed.
- *   No  -> Blank Contract Forms (PDF), shown at any time (no documents needed).
+/* Printable Customer Documents.
+ * The application child table is the only source of the print-format list.
+ * There is deliberately no signing workflow in this UI.
  */
 
-function comfort_collection_complete(frm) {
-	const df = (frm.meta.fields || []).find((field) =>
-		(field.label || "").trim().toLowerCase().startsWith("download pdf with signed documents")
+function comfort_printable_customer_documents(frm) {
+	return (frm.doc.custom_customer_documents || []).filter((row) =>
+		row.document_code !== "REQ" && row.document_template !== "LDT-00007"
 	);
-	if (!df) return false;
-	const value = String(frm.doc[df.fieldname] || "").trim().toLowerCase();
-	return value === "yes" || value === "1";
 }
 
+function comfort_document_title(row) {
+	if (row.document_name) return row.document_name;
+	const titles = {
+		"HP-AGREEMENT": __("Hire Purchase Agreement"),
+		"SCHEDULE-1": __("Contents of Credit Contract"),
+		"FORM-1": __("Information Statement"),
+		"FORM-2": __("Form 2"),
+		"FINANCIAL-OBLIGATIONS": __("Summary of Financial Obligations"),
+		"CONSENT-FORM": __("Consent Form"),
+	};
+	if (titles[row.document_code]) return titles[row.document_code];
+	return row.document_code || __("Customer Document");
+}
+
+function comfort_open_print_format(frm, row) {
+	if (!row.document_template) {
+		frappe.msgprint(__("This customer-document row is not linked to a document template."));
+		return;
+	}
+	frappe.call({
+		method: "comfort_homes.signed_pack.get_document_print_url",
+		args: { loan_application: frm.doc.name, document_template: row.document_template },
+		freeze: true,
+		freeze_message: __("Preparing document…"),
+		callback(r) {
+			if (r.message?.url) window.open(r.message.url, "_blank");
+		},
+	});
+}
+
+// The database Client Script from earlier releases defines these global helpers
+// for electronic signing. Override them so old installations become print-only.
+window.flexi_open_customer_document = comfort_open_print_format;
+window.flexi_add_document_buttons = function (frm) {
+	comfort_printable_customer_documents(frm).forEach((row) => {
+		frm.add_custom_button(
+			__("Print {0}", [comfort_document_title(row)]),
+			() => comfort_open_print_format(frm, row),
+			__("Customer Documents")
+		);
+	});
+};
+
 frappe.ui.form.on("Loan Application", {
-	// Save as soon as the choice changes, so the right button appears straight away.
-	custom_download_pdf_with_signed_documents(frm) {
-		if (frm.is_new() || !frm.is_dirty()) return;
-		frm.save(frm.doc.docstatus === 1 ? "Update" : "Save");
-	},
 	refresh(frm) {
 		if (frm.is_new()) return;
-		const rows = (frm.doc.custom_customer_documents || []).filter((row) => row.document_code !== "REQ");
-		const allCompleted = rows.length > 0 && rows.every((row) => row.status === "Completed");
-		if (comfort_collection_complete(frm)) {
-			if (!allCompleted) return; // Signed pack only after every document is Completed.
-			frm.add_custom_button(
-				__("Download All Signed Copy"),
-				() => comfort_contract_pdf(frm, "comfort_homes.signed_pack.make_signed_pack", __("Signed Contract Pack")),
-				__("Customer Documents")
-			);
-		} else {
-			frm.add_custom_button(
-				__("Download All Copy"),
-				() => comfort_contract_pdf(frm, "comfort_homes.signed_pack.make_blank_forms", __("Blank Contract Forms")),
-				__("Customer Documents")
-			);
-		}
+		// Remove legacy signing and signed/blank-pack buttons before replacing
+		// them with the exact configured customer-document list.
+		frm.clear_custom_buttons(__("Customer Documents"));
+		window.flexi_add_document_buttons(frm);
+		frm.add_custom_button(
+			__("Download All Documents"),
+			() => comfort_contract_pdf(frm, "comfort_homes.signed_pack.make_document_pack", __("Customer Documents")),
+			__("Customer Documents")
+		);
+	},
+});
+
+// Keep the deposit action with this confirmed Loan Application Desk asset.
+// The same per-form guard is used by the workflow-notes script, so it will
+// never add a duplicate action on sites that load both scripts.
+frappe.ui.form.on("Loan Application", {
+	refresh(frm) {
+		if (frm.is_new()) return;
+		if (!["Approved", "Contract Signing", "Awaiting Customer Signature"].includes(frm.doc.workflow_state)) return;
+		if (frm.__comfortDepositInvoiceActionV2Registered) return;
+
+		const addButton = () => {
+			frm.add_custom_button(__("Create Deposit Sales Invoice"), () => {
+				frappe.call({
+					method: "comfort_homes.api.create_deposit_sales_invoice",
+					args: { loan_application: frm.doc.name },
+					freeze: true,
+					freeze_message: __("Creating draft deposit invoice..."),
+					callback(response) {
+						if (response.message?.name) frappe.set_route("Form", "Sales Invoice", response.message.name);
+					},
+				});
+			});
+			frm.__comfortDepositInvoiceActionV2Registered = true;
+		};
+
+		const invoice = frm.doc.custom_deposit_sales_invoice;
+		if (!invoice) return addButton();
+		frappe.db.get_value("Sales Invoice", invoice, "docstatus").then((result) => {
+			const status = result?.message?.docstatus;
+			if (status === 2 || status === null || status === undefined) addButton();
+		});
 	},
 });
 

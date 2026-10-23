@@ -5,15 +5,15 @@ app_description = "Comfort Homes lending customisations"
 app_email = "support@comforthomefurnishing.com"
 app_license = "mit"
 
-webform_include_js = {"Loan Application": "public/js/loan_application_duplicate_check.js"}
-# Web Forms created in the database (rather than marked Standard) do not load
-# webform_include_js. Load the small route-guarded script on website pages too.
-web_include_js = [
-	"public/js/loan_application_duplicate_check.js",
-	"public/js/loan_application_branch_filter.js",
-]
+# The Loan Application Web Form is database-backed, so its client script is
+# installed idempotently by ``webform_setup.inject_loan_application_duplicate_check``.
+# Do not also load that calculation bridge as a Web Form/website asset: multiple
+# copies register competing Currency input listeners and can corrupt a value
+# while a customer is typing it.
+web_include_js = ["public/js/loan_application_branch_filter.js"]
 
 doctype_js = {
+	"Loan": "public/js/loan_temporary_repayment_tenure.js",
 	"Loan Application": [
 		"public/js/loan_application_branch_filter.js",
 		"public/js/loan_application_co_applicant.js",
@@ -21,10 +21,19 @@ doctype_js = {
 		"public/js/loan_application_signed_pack.js",
 	]
 }
+override_doctype_dashboards = {
+	"Loan Application": "comfort_homes.loan_mapping.get_loan_application_dashboard_data",
+}
 after_migrate = [
 	"comfort_homes.webform_setup.inject_loan_application_duplicate_check",
 	"comfort_homes.co_applicant.ensure_loan_application_fields",
+	"comfort_homes.co_applicant.configure_co_applicant_profile",
+	"comfort_homes.signed_pack.normalize_customer_print_formats",
 ]
+# A first-time app installation performs fixture sync but not an ordinary site
+# migration.  Apply the same idempotent Web Form setup after either path.
+after_install = "comfort_homes.webform_setup.setup_web_form_and_print_formats"
+after_sync = "comfort_homes.webform_setup.setup_web_form_and_print_formats"
 
 # Apps
 # ------------------
@@ -34,19 +43,27 @@ required_apps = ["frappe", "erpnext", "lending"]
 fixtures = [
 	{
 		"dt": "Custom Field",
-		"filters": [["name", "in", ["Loan-custom_mode_of_payment", "Loan Application-custom_deposit_sales_invoice", "Sales Invoice-custom_loan_application"]]],
+		# Flexi extends Lending's standard DocTypes through Custom Field records.
+		# Keeping the complete set here makes a fresh installation reproduce the
+		# same Loan Application layout and database columns as the working site.
+		"filters": [["dt", "in", ["Loan Application", "Loan", "Loan Disbursement", "Sales Invoice", "Purchase Order", "Purchase Invoice", "Customer", "Contact"]]],
 	},
 	{
 		"dt": "Property Setter",
-		"filters": [["name", "in", ["Loan Application-custom_flexi_payment_period-options"]]],
-	},
-	{
-		"dt": "DocType",
-		"filters": [["name", "in", ["Loan Bank Reconciliation", "Loan Bank Reconciliation Item"]]],
+		"filters": [["name", "in", [
+			"Loan Application-custom_flexi_payment_period-options",
+			"Loan Application-applicant_name-label",
+			"Loan Application-applicant_name-insert_after",
+		]]],
 	},
 	{
 		"dt": "Client Script",
-		"filters": [["name", "in", ["Flexi Loan Bank Reconciliation", "Flexi Customer Document Signing"]]],
+		"filters": [["name", "in", [
+		"Flexi Loan Bank Reconciliation",
+		"Flexi Customer Document Signing",
+		"Flexi Customer Document Signing Order",
+		"Comfort Homes Loan Application Deposit Invoice",
+	]]],
 	},
 	{
 		"dt": "Server Script",
@@ -62,20 +79,62 @@ fixtures = [
 		"dt": "Loan Document Template",
 		"filters": [["document_code", "=", "REQ"]],
 	},
+	{
+		# The six customer documents are physically printed, signed, and scanned.
+		# Store the actual layouts in the app so a restore does not replace them
+		# with unrelated or stale print formats.
+		"dt": "Print Format",
+		"filters": [["name", "in", [
+			"Hire Purchase Agreement",
+			"Schedule 1",
+			"Form 1",
+			"Form 2",
+			"Summary of Financial Obligations",
+			"Consent Form",
+		]]],
+	},
+	{
+		# The published public application is an app fixture, not a site-only
+		# Web Form.  Fresh sites therefore receive the same five-step form.
+		"dt": "Web Form",
+		"filters": [["name", "=", "loan-application-new"]],
+	},
+	{
+		"dt": "Workflow",
+		"filters": [["name", "=", "Loan Application Workflow-1"]],
+	},
 ]
 
 doc_events = {
-	"Loan": {"before_validate": "comfort_homes.loan_mapping.apply_loan_application_values"},
-	"Loan Disbursement": {"before_validate": "comfort_homes.loan_mapping.apply_loan_values_to_disbursement"},
+	"Loan": {
+		"before_validate": [
+			"comfort_homes.loan_mapping.apply_loan_application_values",
+			"comfort_homes.loan_mapping.apply_temporary_repayment_tenure",
+		]
+	},
+	"Loan Disbursement": {
+		"before_validate": [
+			"comfort_homes.loan_mapping.apply_loan_values_to_disbursement",
+			"comfort_homes.loan_mapping.apply_temporary_repayment_tenure_to_disbursement",
+		]
+	},
+	"Purchase Order": {
+		"before_save": "comfort_homes.loan_mapping.apply_loan_application_purchase_values",
+	},
+	"Purchase Invoice": {
+		"before_validate": "comfort_homes.loan_mapping.apply_purchase_invoice_loan_application",
+	},
 	"Loan Application": {
 		"before_insert": "comfort_homes.loan_application_workflow.validate_public_application_not_existing_customer",
 		"before_validate": [
+			"comfort_homes.loan_application_workflow.calculate_financials",
 			"comfort_homes.co_applicant.validate_existing_co_applicant",
 			"comfort_homes.loan_application_workflow.validate_branch_location",
 			"comfort_homes.loan_application_workflow.validate_deposit_invoice",
 		],
 	},
 	"Co-Applicant": {
+		"after_insert": "comfort_homes.co_applicant.sync_linked_loan_application",
 		"on_update": "comfort_homes.co_applicant.sync_linked_loan_application",
 	},
 }
@@ -155,8 +214,10 @@ doc_events = {
 # Installation
 # ------------
 
-# before_install = "comfort_homes.install.before_install"
-# after_install = "comfort_homes.install.after_install"
+before_install = "comfort_homes.webform_setup.ensure_install_schema"
+# Existing sites run `migrate`, not `install_app`.  This must execute before
+# fixture sync so data fixtures never reference an absent custom DocType.
+before_migrate = "comfort_homes.webform_setup.ensure_install_schema"
 
 # Uninstallation
 # ------------
