@@ -447,7 +447,7 @@
 			custom_flexi_deposit_amount: money(depositAmount),
 			custom_flexi_deposit_percent: money(depositPercent),
 			custom_flexi_value_after_deposit: afterDeposit,
-			loan_amount: afterDeposit,
+			loan_amount: financed,
 			custom_flexi_documentation_fee: money(documentationFee),
 			custom_flexi_admin_fee: adminFee,
 			custom_flexi_stamp_duty_fee: money(stampDuty),

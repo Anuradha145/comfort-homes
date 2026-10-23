@@ -151,7 +151,9 @@ def calculate_financials(doc, method=None):
 		"custom_flexi_deposit_percent": _money(deposit_percent),
 		"custom_flexi_deposit_amount": _money(deposit_amount),
 		"custom_flexi_value_after_deposit": after_deposit,
-		"loan_amount": after_deposit,
+		# Loan Amount is the total credit being financed: balance after the
+		# deposit plus every applicable finance fee, not the balance alone.
+		"loan_amount": financed,
 		"custom_flexi_admin_fee": admin_fee,
 		"custom_flexi_net_amount_financed": financed,
 		"custom_flexi_term_charges": term_charges,
