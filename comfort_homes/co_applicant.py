@@ -258,18 +258,42 @@ def _append_standard_co_applicant(application, co_applicant):
 	"""Store the shared contact summary in Lending's standard child table."""
 	if not application.meta.has_field("co_applicants"):
 		return False
+	name = co_applicant.get("applicant_name") or co_applicant.get("custom_customer_full_name")
+	if not name:
+		name = " ".join(
+			part for part in [
+				co_applicant.get("custom_first_name"),
+				co_applicant.get("custom_middle_name"),
+				co_applicant.get("custom_surname"),
+			] if part
+		)
+	email = co_applicant.get("applicant_email_address") or co_applicant.get("email_id")
+	mobile = co_applicant.get("applicant_phone_number") or co_applicant.get("mobile_no")
+	# Do not create a misleading empty summary row while a user is still
+	# completing a new Co-Applicant record.
+	if not any((name, email, mobile)):
+		return False
+
+	# A newly-created Co-Applicant can already have a blank standard-table row.
+	# Reuse and populate it instead of leaving an empty row plus a duplicate.
 	for row in application.get("co_applicants") or []:
-		if (
-			row.applicant_email == co_applicant.get("applicant_email_address")
-			and row.applicant_mobile == co_applicant.get("applicant_phone_number")
-		):
-			return False
+		if not row.applicant_name and not row.applicant_email and not row.applicant_mobile:
+			row.applicant_name = name
+			row.applicant_email = email
+			row.applicant_mobile = mobile
+			return True
+		if row.applicant_email == email and row.applicant_mobile == mobile:
+			changed = (row.applicant_name, row.applicant_email, row.applicant_mobile) != (name, email, mobile)
+			row.applicant_name = name
+			row.applicant_email = email
+			row.applicant_mobile = mobile
+			return changed
 	application.append(
 		"co_applicants",
 		{
-			"applicant_name": co_applicant.get("applicant_name"),
-			"applicant_email": co_applicant.get("applicant_email_address"),
-			"applicant_mobile": co_applicant.get("applicant_phone_number"),
+			"applicant_name": name,
+			"applicant_email": email,
+			"applicant_mobile": mobile,
 		},
 	)
 	return True
