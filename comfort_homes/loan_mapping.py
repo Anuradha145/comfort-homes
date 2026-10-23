@@ -245,16 +245,22 @@ def apply_purchase_invoice_loan_application(doc, method=None):
 
 
 def get_loan_application_dashboard_data(data=None):
-	"""Add app-owned PO and PI links to Loan Application Connections."""
+	"""Add app-owned related-document links to Loan Application Connections."""
 	data = frappe._dict(data or {})
 	transactions = data.setdefault("transactions", [])
 	if not any("Purchase Order" in group.get("items", []) for group in transactions):
 		transactions.append({"label": "Purchasing", "items": ["Purchase Order", "Purchase Invoice"]})
+	if not any("Co-Applicant" in group.get("items", []) for group in transactions):
+		# This is deliberately a dashboard relationship, rather than a workflow
+		# action. Frappe therefore shows the normal + action whenever the parent
+		# Loan Application is saved and the user has Co-Applicant create access.
+		transactions.append({"label": "Applicants", "items": ["Co-Applicant"]})
 
 	data.setdefault("non_standard_fieldnames", {}).update(
 		{
 			"Purchase Order": "custom_loan_application",
 			"Purchase Invoice": "custom_loan_application",
+			"Co-Applicant": "loan_application",
 		}
 	)
 	return data
