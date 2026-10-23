@@ -1,13 +1,15 @@
 /* Desk-only, deliberate reuse of a known Co-Applicant on a Loan Application. */
 frappe.ui.form.on("Loan Application", {
 	refresh(frm) {
-		if (frm.is_new()) return;
+		// A linked Co-Applicant needs a saved parent name, but must be available
+		// from the first saved draft / Initiated workflow state—not Contract Signing.
+		if (frm.is_new() || frm.doc.docstatus !== 0) return;
 		frm.add_custom_button(__("Add Co-Applicant"), () => {
 			frappe.new_doc("Co-Applicant", {
 				loan_application: frm.doc.name,
 				company: frm.doc.company,
 			});
-		}, __("Create"));
+		});
 	},
 	custom_tin_number(frm) {
 		if (!frm.is_new() || !frm.doc.custom_tin_number) return;

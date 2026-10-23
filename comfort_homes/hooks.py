@@ -13,6 +13,7 @@ app_license = "mit"
 web_include_js = ["public/js/loan_application_branch_filter.js"]
 
 doctype_js = {
+	"Loan": "public/js/loan_temporary_repayment_tenure.js",
 	"Loan Application": [
 		"public/js/loan_application_branch_filter.js",
 		"public/js/loan_application_co_applicant.js",
@@ -105,8 +106,18 @@ fixtures = [
 ]
 
 doc_events = {
-	"Loan": {"before_validate": "comfort_homes.loan_mapping.apply_loan_application_values"},
-	"Loan Disbursement": {"before_validate": "comfort_homes.loan_mapping.apply_loan_values_to_disbursement"},
+	"Loan": {
+		"before_validate": [
+			"comfort_homes.loan_mapping.apply_loan_application_values",
+			"comfort_homes.loan_mapping.apply_temporary_repayment_tenure",
+		]
+	},
+	"Loan Disbursement": {
+		"before_validate": [
+			"comfort_homes.loan_mapping.apply_loan_values_to_disbursement",
+			"comfort_homes.loan_mapping.apply_temporary_repayment_tenure_to_disbursement",
+		]
+	},
 	"Purchase Order": {
 		"before_save": "comfort_homes.loan_mapping.apply_loan_application_purchase_values",
 	},
@@ -123,6 +134,7 @@ doc_events = {
 		],
 	},
 	"Co-Applicant": {
+		"after_insert": "comfort_homes.co_applicant.sync_linked_loan_application",
 		"on_update": "comfort_homes.co_applicant.sync_linked_loan_application",
 	},
 }
