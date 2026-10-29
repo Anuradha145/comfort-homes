@@ -96,6 +96,19 @@ REVIEWED_PRINT_FORMATS = {
 	"Application Print WIP": "application_print_wip.html",
 }
 
+# Keep direct links to the former database-only formats safe during the
+# transition.  We do not create these retired names on a new site, but where
+# one already exists its HTML is made identical to the reviewed replacement.
+# This prevents Desk Print view from disagreeing with Customer Documents.
+LEGACY_PRINT_FORMAT_ALIASES = {
+	"Hire Purchase Agreement": "test_agreement.html",
+	"Schedule 1": "schedule_1_test.html",
+	"Form 1": "form_1_test.html",
+	"Form 2": "form_2_test.html",
+	"Summary of Financial Obligations": "summary_test.html",
+	"Consent Form": "consent_test.html",
+}
+
 DOCUMENT_PRINT_FORMATS = {
 	"HP-AGREEMENT": "Test Agreement",
 	"SCHEDULE-1": "Schedule 1 Test",
@@ -153,6 +166,18 @@ def sync_reviewed_print_formats():
 					"html": html,
 				}
 			).insert(ignore_permissions=True)
+		updated.append(format_name)
+
+	# Existing direct-print links may still use a former format name.  Update
+	# that record in place rather than creating a second layout or leaving a
+	# stale legal document reachable from the Desk print menu.
+	for format_name, filename in LEGACY_PRINT_FORMAT_ALIASES.items():
+		if not frappe.db.exists("Print Format", format_name):
+			continue
+		path = formats_dir / filename
+		legacy_format = frappe.get_doc("Print Format", format_name)
+		legacy_format.html = path.read_text(encoding="utf-8")
+		legacy_format.save(ignore_permissions=True)
 		updated.append(format_name)
 
 	_ensure_assessment_document_template()
