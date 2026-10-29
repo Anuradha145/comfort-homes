@@ -1,0 +1,222 @@
+<style>
+/* Flexible Purchase - legal instrument print system. Table/block layout only (wkhtmltopdf safe). Black on white, serif. */
+@page { size: A4; margin: 16mm 16mm 18mm 16mm; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { font-family: "Times New Roman", Times, "Liberation Serif", "Nimbus Roman", "DejaVu Serif", serif; font-size: 10.5pt; line-height: 1.38; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 10.5pt; line-height: 1.38; }
+td, th { vertical-align: top; padding: 0; word-wrap: break-word; }
+tr { page-break-inside: avoid; }
+p { margin: 0 0 5pt 0; text-align: justify; }
+b, .b { font-weight: bold; }
+.muted { color: #333; }
+.center { text-align: center; }
+.right { text-align: right; }
+
+/* ---- title block ---- */
+.head { text-align: center; margin: 0 0 10pt 0; }
+.org { font-size: 10pt; font-weight: bold; letter-spacing: 0.06em; text-transform: uppercase; }
+.org2 { font-size: 9.5pt; font-style: italic; margin-bottom: 8pt; }
+.title { font-size: 16pt; font-weight: bold; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1.2; margin: 4pt 0 2pt 0; }
+.subtitle { font-size: 10pt; font-style: italic; margin-top: 2pt; }
+.dbl { border-top: 0.75pt solid #000; border-bottom: 0.75pt solid #000; height: 3.2pt; margin-top: 8pt; }
+.refbox { margin: 6pt 0 10pt 0; border: 0.75pt solid #000; }
+.refbox td { padding: 3pt 7pt 4pt 7pt; border-right: 0.75pt solid #000; }
+.refbox td:last-child { border-right: none; }
+.refbox .rl { font-size: 8.5pt; font-style: italic; display: block; }
+.refbox .rv { font-weight: bold; font-size: 10.5pt; display: block; min-height: 12pt; }
+
+/* ---- key terms (formal particulars box) ---- */
+.key { margin: 4pt 0 12pt 0; border: 1pt solid #000; page-break-inside: avoid; }
+.key th { background: #e6e6e6; border-bottom: 0.75pt solid #000; padding: 3pt 7pt; font-size: 9.5pt; letter-spacing: 0.05em; text-transform: uppercase; text-align: left; }
+.key td { padding: 5pt 7pt 6pt 7pt; border-right: 0.75pt solid #000; }
+.key td:last-child { border-right: none; }
+.k-label { font-size: 8.5pt; font-style: italic; margin-bottom: 1pt; }
+.k-val { font-size: 13pt; font-weight: bold; line-height: 1.15; white-space: nowrap; }
+.k-sub { font-size: 8.5pt; font-style: italic; }
+
+/* ---- headings ---- */
+.sec { font-size: 10.5pt; font-weight: bold; letter-spacing: 0.06em; text-transform: uppercase; text-align: center; border-bottom: 0.75pt solid #000; padding-bottom: 2pt; margin: 14pt 0 7pt 0; page-break-after: avoid; }
+.lead { margin: 0 0 8pt 0; }
+
+/* ---- numbered clauses (hanging indent) ---- */
+.cl { margin: 0 0 7pt 0; padding-left: 11mm; position: relative; page-break-inside: avoid; }
+.cl .n { position: absolute; left: 0; top: 0; width: 10mm; font-weight: bold; }
+.cl .h { font-weight: bold; margin-bottom: 2pt; }
+.cl p { margin: 0 0 4pt 0; text-align: justify; }
+.cl ul { margin: 2pt 0 4pt 0; padding-left: 14pt; }
+.cl li { margin: 0 0 2pt 0; text-align: justify; }
+.sub { padding-left: 8mm; margin: 0 0 3pt 0; text-align: justify; }
+
+/* ---- ruled grids ---- */
+.kv { border: 0.75pt solid #000; }
+.kv td { padding: 4pt 7pt; border: 0.5pt solid #000; }
+.kv .l { background: #f0f0f0; width: 30%; font-weight: normal; }
+.kv .v { font-weight: bold; }
+
+.fin { border: 0.75pt solid #000; }
+.fin td { padding: 3.5pt 7pt; border: 0.5pt solid #000; }
+.fin .r { width: 12mm; font-weight: bold; white-space: nowrap; text-align: center; }
+.fin .cur { width: 7mm; text-align: right; padding-right: 2pt; border-right: none; }
+.fin .amt { width: 30mm; text-align: right; font-weight: bold; white-space: nowrap; border-left: none; }
+.fin tr.strong td { border-top: 2.25pt double #000; background: #ececec; font-weight: bold; }
+.fin tr.hl td { background: #f4f4f4; font-weight: bold; }
+
+.goods { border: 0.75pt solid #000; }
+.goods th { text-align: left; font-size: 9.5pt; font-weight: bold; padding: 3pt 7pt; background: #e6e6e6; border: 0.5pt solid #000; }
+.goods td { padding: 4pt 7pt; border: 0.5pt solid #000; height: 18pt; }
+.goods .no { width: 11mm; text-align: center; }
+.goods .q { width: 16mm; text-align: center; }
+.goods .p { width: 30mm; text-align: right; white-space: nowrap; }
+
+/* ---- prescribed notices ---- */
+.notice { border: 2.25pt solid #000; padding: 9pt 14pt; margin: 12pt 0; text-align: center; font-weight: bold; page-break-inside: avoid; }
+.notice .nt { font-size: 12pt; letter-spacing: 0.1em; margin-bottom: 4pt; }
+.notice-soft { border: 1.5pt solid #000; padding: 8pt 14pt 6pt 14pt; margin: 12pt 0; page-break-inside: avoid; }
+.notice-soft .nt { font-weight: bold; text-align: center; letter-spacing: 0.04em; margin-bottom: 5pt; padding-bottom: 3pt; border-bottom: 0.75pt solid #000; }
+.notice-soft p { margin: 0 0 4pt 0; text-align: justify; }
+
+/* ---- execution blocks ---- */
+.sign { margin-top: 14pt; page-break-inside: avoid; }
+.sign td { padding: 0 12pt 0 0; vertical-align: top; }
+.sign td:last-child { padding-right: 0; }
+.sign .who { font-weight: bold; text-transform: uppercase; font-size: 9.5pt; letter-spacing: 0.05em; margin-bottom: 4pt; }
+.sign .box { height: 20mm; border-bottom: 0.9pt solid #000; }
+.sign .cap { font-size: 8.5pt; font-style: italic; margin-top: 2pt; }
+.sign .line { margin-top: 7pt; border-bottom: 0.5pt solid #000; padding-bottom: 1pt; min-height: 13pt; }
+.sign .line span { font-size: 9pt; font-style: italic; }
+.sig-img { max-width: 62mm; max-height: 18mm; display: block; }
+.block { page-break-inside: avoid; }
+.avoid { page-break-inside: avoid; }
+.pagebreak { page-break-before: always; }
+</style>
+{# ===== shared setup - identical in all six formats ===== #}
+{% macro money(v) %}{{ "{:,.2f}".format((v or 0)|float) }}{% endmacro %}
+{% set period_label = doc.custom_flexi_payment_period or "Monthly" %}
+{% set period_key = period_label|lower|replace("-", "")|replace(" ", "") %}
+{% set count_map = {"weekly": doc.custom_flexi_weekly_instalments, "fortnightly": doc.custom_flexi_fortnightly_instalments, "bimonthly": doc.custom_flexi_bimonthly_instalments, "monthly": doc.custom_flexi_monthly_instalments} %}
+{% set amount_map = {"weekly": doc.custom_flexi_weekly_instalment_amount, "fortnightly": doc.custom_flexi_fortnightly_instalment_amount, "bimonthly": doc.custom_flexi_bimonthly_instalment_amount, "monthly": doc.custom_flexi_monthly_instalment_amount} %}
+{% set n_instalments = count_map.get(period_key) or doc.repayment_periods or "" %}
+{% set instalment_amount = amount_map.get(period_key) or doc.repayment_amount or 0 %}
+{% set addr_parts = [doc.address_line_1, (doc.address_line_2 if doc.address_line_2 != doc.address_line_1 else none), (doc.custom_suburb or doc.suburb), doc.city, (doc.custom_province if doc.custom_province != doc.city else none), doc.country, (doc.zip_code if doc.zip_code and doc.zip_code != 0 else none)] %}
+{% set address = addr_parts|select|join(", ") %}
+{% set items = doc.custom_flexi_purchase_items or [] %}
+{% set office = doc.company_registered_office or "Lot 18 Yarawa Road, Nabua, Suva, Central Division, Fiji" %}
+{% set hirer_signature = doc.hirer_signature or doc.custom_applicant_signature or "" %}
+{% set hirer_date = doc.hirer_signature_date or doc.custom_flexi_hirer_signature_date or "" %}
+{% set rep_name = doc.company_representative_name or doc.custom_flexi_company_representative_name or "" %}
+{% set rep_signature = doc.company_representative_signature or doc.custom_flexi_company_representative_signature or "" %}
+{% set rep_date = doc.company_representative_date or doc.custom_flexi_company_representative_date or "" %}
+{% set co_applicants = get_co_applicants(doc.name) %}
+{% set has_co_applicants = co_applicants|length > 0 %}
+{% set hirer_names = joint_name(doc.applicant_name, co_applicants) %}
+<div class="head">
+<div class="org">Comfort Home Furnishing Pte Limited</div>
+<div class="org2">trading as Flexible Purchase</div>
+<div class="title">Hire purchase agreement</div>
+
+<div class="dbl"></div>
+</div>
+<table class="refbox"><tr>
+<td style="width:30%;"><span class="rl">HP Account No.</span><span class="rv">{{ doc.custom_flexi_hp_account_number or "" }}</span></td>
+<td style="width:30%;"><span class="rl">Quotation No.</span><span class="rv">{{ doc.custom_flexi_quotation_number or "" }}</span></td>
+<td style="width:40%;"><span class="rl">Hirer / Borrower</span><span class="rv">{{ hirer_names }}</span></td>
+</tr></table>
+<p><b>BETWEEN: COMFORT HOME FURNISHING PTE LIMITED TRADING AS FLEXIBLE PURCHASE</b>, a limited liability company duly incorporated under the laws of Fiji and having its registered office at <b>{{ office }}</b> (hereinafter known as the “Owner”).</p>
+<div class="sec">Customer / hirer details</div>
+<table class="kv"><tr><td class="l">Name of Hirer</td><td class="v">{{ doc.applicant_name or "" }}</td></tr><tr><td class="l">Residential Address</td><td class="v">{{ address }}</td></tr><tr><td class="l">HP Account No</td><td class="v">{{ doc.custom_flexi_hp_account_number or "" }}</td></tr><tr><td class="l">HP Reference / Quotation No</td><td class="v">{{ doc.custom_flexi_quotation_number or "" }}</td></tr></table>
+<p style="margin-top:3pt;font-style:italic;">(hereinafter known as the “Hirer”)</p>
+{% if has_co_applicants %}
+<div class="sec">Applicant and co-applicant assessment summary</div>
+<table class="fin">
+<tr><th>Assessment person</th><th>Monthly income</th><th>Existing financial obligations</th></tr>
+<tr><td>{{ doc.applicant_name or "" }}</td><td class="amt">$ {{ money(doc.custom_flexi_total_monthly_income) }}</td><td class="amt">$ {{ money(doc.custom_flexi_total_finance_obligations) }}</td></tr>
+{% set assessment = namespace(income=(doc.custom_flexi_total_monthly_income or 0)|float, obligations=(doc.custom_flexi_total_finance_obligations or 0)|float) %}
+{% for co_applicant in co_applicants %}
+<tr><td>{{ applicant_name(co_applicant) }}</td><td class="amt">$ {{ money(co_applicant_monthly_income(co_applicant)) }}</td><td class="amt">$ {{ money(co_applicant_financial_obligations(co_applicant)) }}</td></tr>
+{% set assessment.income = assessment.income + (co_applicant_monthly_income(co_applicant) or 0)|float %}
+{% set assessment.obligations = assessment.obligations + (co_applicant_financial_obligations(co_applicant) or 0)|float %}
+{% endfor %}
+<tr class="strong"><td>Combined household assessment</td><td class="amt">$ {{ money(assessment.income) }}</td><td class="amt">$ {{ money(assessment.obligations) }}</td></tr>
+</table>
+{% endif %}
+<table class="key">
+<tr><th colspan="5">Key terms of this agreement</th></tr>
+<tr>
+<td style="width:24%;"><div class="k-label">Total payable</div><div class="k-val">$ {{ money(doc.total_payable_amount) }}</div></td>
+<td style="width:22%;"><div class="k-label">Each installment</div><div class="k-val">$ {{ money(instalment_amount) }}</div><div class="k-sub">{{ period_label|lower }}</div></td>
+<td style="width:18%;"><div class="k-label">Number of installments</div><div class="k-val">{{ n_instalments }}</div><div class="k-sub">over {{ doc.custom_flexi_term_months or "" }} months</div></td>
+<td style="width:20%;"><div class="k-label">First installment</div><div class="k-val">{{ frappe.utils.formatdate(doc.custom_flexi_first_instalment_date, "dd-mm-yyyy") if doc.custom_flexi_first_instalment_date else "" }}</div></td>
+<td style="width:16%;"><div class="k-label">Annual interest rate</div><div class="k-val">{{ doc.custom_flexi_interest_rate or "" }}%</div><div class="k-sub">fixed for the term</div></td>
+</tr></table>
+<div class="sec" style="page-break-after:avoid;">Terms and conditions of hire</div>
+<div class="cl "><span class="n">1.</span><div class="h">Contract sum</div><p>The Hirer shall pay the total sum of $ <b>{{ money(doc.total_payable_amount) }}</b> as per the Credit Contract, which sum is inclusive of principal, interest, and other charges for the term of the Hire.</p></div>
+<div class="cl" style="page-break-inside:auto;"><span class="n">2</span><div class="h">Description of goods</div><table class="goods">
+<tr><th class="no">No.</th><th>Description of goods</th><th class="q">Qty</th></tr>
+{% for item in items %}<tr><td class="no">{{ loop.index }}</td><td>{{ item.product_description or "" }}</td><td class="q">{{ item.quantity if item.quantity is not none else "" }}</td></tr>{% endfor %}
+{% for i in range(0) %}<tr><td class="no">{{ (items|length) + loop.index }}</td><td></td><td class="q"></td></tr>{% endfor %}
+</table>
+{% if not items %}<p class="muted">—</p>{% endif %}</div>
+<div class="cl" style="page-break-inside:auto;"><span class="n">3</span><div class="h">Payments</div><p>Upon the execution of this agreement by the Hirer in consideration of the option to purchase, the Hirer shall pay to the owner and/or its nominee the sum of:</p><table class="fin"><tr><td class="r">I</td><td>Cost of Goods</td><td class="cur">$</td><td class="amt">{{ money(doc.custom_flexi_cash_price) }}</td></tr><tr><td class="r">II</td><td>Deposit</td><td class="cur">$</td><td class="amt">{{ money(doc.custom_flexi_deposit_amount) }}</td></tr><tr><td class="r">III</td><td>Balance after deposit</td><td class="cur">$</td><td class="amt">{{ money(doc.custom_flexi_value_after_deposit) }}</td></tr><tr><td class="r">IV</td><td>Documentation Fees</td><td class="cur">$</td><td class="amt">{{ money(doc.custom_flexi_documentation_fee) }}</td></tr><tr><td class="r">V</td><td>Admin Fees</td><td class="cur">$</td><td class="amt">{{ money(doc.custom_flexi_admin_fee) }}</td></tr><tr><td class="r">VI</td><td>Interest Charges</td><td class="cur">$</td><td class="amt">{{ money(doc.total_payable_interest) }}</td></tr><tr class="strong"><td class="r">VII</td><td>Total Payable</td><td class="cur">$</td><td class="amt">{{ money(doc.total_payable_amount) }}</td></tr><tr class="hl"><td class="r">VIII</td><td>{{ period_label }} Installment</td><td class="cur">$</td><td class="amt">{{ money(instalment_amount) }}</td></tr><tr><td class="r">IX</td><td>First Installment Date</td><td class="cur"></td><td class="amt">{{ frappe.utils.formatdate(doc.custom_flexi_first_instalment_date, "dd-mm-yyyy") if doc.custom_flexi_first_instalment_date else "" }}</td></tr></table></div>
+<div class="cl "><span class="n">4.</span><p>In the event the Hirer defaults in any one payment, then the Hirer shall be liable to pay a default interest rate of 2.2% on the unpaid amount. Such interest shall accrue from the date of the default till the total amount in default is cleared in full.</p></div>
+<div class="cl "><span class="n">5.</span><p>The Chattels, being the subject of this agreement, shall remain the property of the Owner till such time when all the payments specified in clauses 3 and 4 have been duly paid (provided always that the terms and conditions of this agreement have in the meantime been duly observed by the hirer). The Hirer shall be a mere Bailee of the chattels till such time as the chattels are fully paid for.</p></div>
+<div class="cl "><span class="n">6.</span><p>The Hirer shall keep the Chattels in good order and in working condition at the Hirer’s address (any change of which shall be promptly notified to the Owner in writing) and which may be inspected by the Owner and or its agent at all reasonable times.</p></div>
+<div class="cl "><span class="n">7.</span><p>The Hirer shall not sell, assign, transfer, pledge, mortgage, or otherwise deal with or part with the possession of the said chattels or any of the benefits of this agreement nor commit or suffer the chattels to be seized under distress for rent, rates taxes or any other legal process.</p></div>
+<div class="cl "><span class="n">8.</span><p>If the said chattels shall during the hiring become damaged, defective or unserviceable, the hirer shall report such fact to the Owner who may at the expense of the Hirer repair, make good or cause to be repaired the said chattels and the Hirer on demand by the Owner shall deliver the said chattels to the Owner for such purpose.</p></div>
+<div class="cl "><span class="n">9.</span><p>The Hirer shall have a right to terminate this agreement at any time by returning the chattels in good and working condition at his or her own expense to the Owner. The Hirer will be liable to pay to the Owner the shortfall balance or any balance owing after the market value consideration has been deducted from the balance owed at the time the chattels are returned.</p></div>
+<div class="cl "><span class="n">10.</span><p>If the Hirer commits breach of any term of this Agreement or fails to pay any two consecutive monthly instalments, and or defaults in the final payment the Owner will have the right to terminate this agreement and take possession of the chattels the subject of the hire by giving 21 DAYS prior notice to repossession and unless in the meanwhile the breach is remedied and the hire charges (default amount) are paid as the case may be, this agreement shall, on the expiration of the notice period stand terminated. If the agreement is terminated as aforesaid, the Hirer’s option to purchase as hereinbefore mentioned shall stand forfeited or cancelled.</p></div>
+<div class="cl "><span class="n">11.</span><p>In the event the agreement is terminated due to the reason of default and non-payment of the hire charges by the Hirer, the Hirer shall continue to be liable to the Owner for all hire charges, default interest, fees, charges, and enforcement expenses due under the agreement.</p></div>
+<div class="cl "><span class="n">12.</span><p>The Hirer understands and agrees that the Owners, being the not Manufacturers of the chattels, do not supply the chattels or any of them subject to any condition or warranty either express or implied as to the quality, description fitness, suitability for use or otherwise.</p></div>
+<div class="cl "><span class="n">13.</span><p>The Hirer agrees that the risk in the chattels passes to the Hirer at the time of delivery and or possession of the chattels, and the Hirer must insure the chattels to cover all risks to the full replacement value of the chattels.</p></div>
+<div class="cl "><span class="n">14.</span><p>In the event of any loss or damage to the chattels by any means whatsoever, the Hirer remains liable to the Owner for the monthly payments and the contract sum.</p></div>
+<div class="cl "><span class="n">15.</span><p>No relaxation, delay or indulgence on the part of the Owner in enforcing any terms and conditions of this agreement shall prejudice or be deemed to be the waiver of any rights of the Owner under this agreement and or operate as a waiver of any breach of agreement.</p></div>
+<div class="cl "><span class="n">16.</span><p>This agreement shall only become binding upon acceptance and signing by the Owner and or its authorized representatives.</p></div>
+<div class="cl "><span class="n">17.</span><p>The Owner reserves the right to terminate this agreement and take possession of any chattels under this agreement if any information originally tendered in the application by the Hirer is later confirmed by the Owner to be false.</p></div>
+<div class="cl "><span class="n">18.</span><p>The Hirer shall pay to the owner on demand</p><div class="sub">a) All cost of locating the hirer or the Goods if the account is in default.</div><div class="sub">b) All cost or recovering possession of Goods or any amount payable under this contract including any bailiff fee etc.</div><div class="sub">c) All Value added tax, Stamp duty, or other taxes or duties payable by the owner in respect of this agreement on the supply of Goods and Services.</div><div class="sub">d) All cost, duties and taxes referred to in clause 18 (a), 18 (b) and 18 (c) or other fees, charges, duties that may be introduced, and interest on arrears may be debited to hirer’s account when they accrue. The Hirer can also be charged for the insurance of arrears letters, reminder letters or demand letters or other associated cost where account can be passed to external parties for debt of outstanding amount.</div></div>
+<div class="cl "><span class="n">19.</span><p>The owner shall be liberty to transfer any credit balance from any of the hirer’s paid off contract to the hirer’s existing account which may be having due or arrears with or without consent of the hirer provided that such credit balance is not transferred to third party’s account in which any case the owner shall ask for written confirmation from the hirer.</p></div>
+<div class="cl "><span class="n">20.</span><p>The Hirer may take insurance cover to insure the chattels and shall provide the certificate of covering stating the terms and conditions thereof.</p></div>
+<div class="notice-soft"><div class="nt">IMPORTANT NOTICE: THINGS YOU MUST KNOW BEFORE YOU SIGN</div>
+<p><b>READ THIS HIRE PURCHASE AGREEMENT</b> so that you know exactly what you are entering into and what you will have to do under the agreement.</p>
+<p>Once you sign the agreement, you will be bound by it. However, you may end the agreement before you obtain (or try to obtain) any credit by informing <b>COMFORT HOME FURNISHING PTE LIMITED TRADING AS FLEXIBLE PURCHASE</b> in writing, but you will still be liable for any fees or charges incurred.</p>
+<p>You acknowledge that you have been advised by <b>COMFORT HOME FURNISHING PTE LIMITED TRADING AS FLEXIBLE PURCHASE</b> that you may consult with an insurance on the option of taking out an insurance cover for the product.</p>
+<p>If you take out insurance, the credit provider cannot insist on any particular insurance company.</p>
+<p>Fill in or cross out any blank spaces. Get a copy of this agreement document.</p>
+<p><b>DO NOT SIGN</b> this agreement document if there is anything you do not understand.</p></div>
+<table class="sign"><tr><td style="width:50%;"><div class="who">Signed by hirer</div><div class="box">{% if hirer_signature %}<img class="sig-img" src="{{ hirer_signature }}"/>{% endif %}</div><div class="cap">Signature</div>
+<div class="line"><span>Name:</span>&nbsp; <b>{{ doc.applicant_name or "" }}</b></div>
+<div class="line">
+    <span>Date:</span>&nbsp; 
+    <b>
+        {% set final_hirer_date = hirer_date or frappe.utils.nowdate() %}
+        {{ frappe.utils.formatdate(final_hirer_date, "dd-MM-yyyy") }}
+    </b>
+</div>
+</td>
+{% if has_co_applicants %}
+</tr></table>
+<table class="sign">
+{% for co_applicant in co_applicants %}
+<tr><td style="width:50%;"><div class="who">Signed by co-hirer</div><div class="box">{% if co_applicant.custom_applicant_signature %}<img class="sig-img" src="{{ co_applicant.custom_applicant_signature }}"/>{% endif %}</div><div class="cap">Signature</div>
+<div class="line"><span>Name:</span>&nbsp; <b>{{ applicant_name(co_applicant) }}</b></div>
+<div class="line"><span>Date:</span>&nbsp; <b>{{ frappe.utils.formatdate(co_applicant.custom_flexi_hirer_signature_date, "dd-MM-yyyy") if co_applicant.custom_flexi_hirer_signature_date else "" }}</b></div>
+</td><td style="width:50%;"></td></tr>
+{% endfor %}
+</table>
+<table class="sign"><tr>
+{% endif %}
+<td style="width:50%;">
+    <div class="who">Signed for CHFPL T/A Flexible Purchase</div>
+    <div class="box">{% if rep_signature %}<img class="sig-img" src="{{ rep_signature }}"/>{% endif %}</div>
+    <div class="cap">Signature</div>
+    <div class="line"><span>Manager / Director:</span>&nbsp; <b>{{ rep_name }}</b></div>
+    <div class="line">
+        <span>Date:</span>&nbsp; 
+        <b>
+            {% set final_rep_date = rep_date or frappe.utils.nowdate() %}
+            {{ frappe.utils.formatdate(final_rep_date, "dd-MM-yyyy") }}
+        </b>
+    </div>
+</td>
+</tr>
+</table>
+

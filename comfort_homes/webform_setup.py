@@ -710,10 +710,16 @@ def inject_loan_application_duplicate_check():
 
 
 def setup_web_form_and_print_formats():
-	"""Apply idempotent public-form and print-format repairs after fixture sync."""
-	inject_loan_application_duplicate_check()
-	from comfort_homes.signed_pack import normalize_customer_print_formats
+	"""Apply idempotent public-form and app-owned print-format repairs.
 
+	The legal customer-document templates are source-controlled in this app.
+	Sync them here (after install and every fixture sync) so a restored site does
+	not continue rendering an earlier database-only Test format.
+	"""
+	inject_loan_application_duplicate_check()
+	from comfort_homes.signed_pack import normalize_customer_print_formats, sync_reviewed_print_formats
+
+	sync_reviewed_print_formats()
 	normalize_customer_print_formats()
 
 

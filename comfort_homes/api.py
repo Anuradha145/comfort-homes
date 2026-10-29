@@ -249,6 +249,33 @@ def check_existing_customer(tin_number=None, email=None):
 	return match
 
 
+@frappe.whitelist()
+def get_temporary_repayment_periods(loan_application=None, repayment_frequency=None):
+	"""Return the app-owned temporary tenure mapping for an eligible Loan form.
+
+	The browser asks the same Python calculation used by the document hooks, so
+	it can only display a value the server will later persist.
+	"""
+	frappe.has_permission("Loan", "write", throw=True)
+	if not loan_application:
+		return {"enabled": False, "periods": None}
+	frappe.has_permission("Loan Application", "read", doc=loan_application, throw=True)
+
+	from comfort_homes.loan_mapping import (
+		_application_repayment_periods,
+		temporary_tenure_workaround_enabled,
+	)
+
+	if not temporary_tenure_workaround_enabled():
+		return {"enabled": False, "periods": None}
+
+	application = frappe.get_doc("Loan Application", loan_application)
+	return {
+		"enabled": True,
+		"periods": _application_repayment_periods(application, repayment_frequency),
+	}
+
+
 def _existing_customer_match(tin_number=None, email=None):
 	"""Return only whether supplied identity values are already held by a customer."""
 	tin_number = str(tin_number or "").strip()

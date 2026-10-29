@@ -3,14 +3,102 @@
 import re
 
 import frappe
-from frappe.utils import flt
+from frappe import _
+from frappe.utils import cint, flt
 
 
 FREQUENCY_MAP = {
 	"Weekly": "Weekly",
 	"Fortnightly": "Bi-Weekly",
 	"Monthly": "Monthly",
+	"Quarterly": "Quarterly",
 }
+
+# TEMPORARY: remove this mapping once the upstream Lending fix is available.
+# It deliberately defaults on so deployed Flexi sites are protected, while a
+# site administrator can immediately opt out with the one config key below.
+TEMPORARY_TENURE_WORKAROUND_CONFIG = "comfort_homes_temporary_tenure_workaround_enabled"
+
+
+def temporary_tenure_workaround_enabled():
+	"""Return whether the short-lived tenure mapping workaround is active."""
+	return cint(frappe.conf.get(TEMPORARY_TENURE_WORKAROUND_CONFIG, 1)) == 1
+
+
+def _application_repayment_periods(application, repayment_frequency):
+	"""Derive periods from the application's original month tenure.
+
+	Loan Application ``custom_flexi_term_months`` is the source of truth.  The
+	weekly and fortnightly formulas intentionally match the existing agreed
+	application calculation, which uses Python's ``round``.
+	"""
+	months = flt(application.get("custom_flexi_term_months"))
+	if months <= 0:
+		return None
+
+	if repayment_frequency == "Monthly":
+		return cint(months)
+	if repayment_frequency == "Weekly":
+		return int(round(months * 52 / 12))
+	if repayment_frequency == "Bi-Weekly":
+		return int(round(months * 26 / 12))
+	if repayment_frequency == "Quarterly":
+		# The application previously had no Quarterly option or agreed rounding
+		# rule.  Never silently shorten or extend a contract with a partial quarter.
+		if months % 3:
+			frappe.throw(
+				_("Quarterly repayment requires a term divisible by 3 months until a partial-quarter rule is agreed.")
+			)
+		return cint(months / 3)
+	return None
+
+
+def _eligible_temporary_tenure_loan(doc):
+	"""Keep the workaround away from imported, submitted and restructured loans."""
+	return bool(
+		temporary_tenure_workaround_enabled()
+		and doc.docstatus == 0
+		and not doc.get("is_imported")
+		and doc.get("loan_application")
+		and not doc.get("loan_restructure")
+		and not doc.get("restructure_type")
+	)
+
+
+def apply_temporary_repayment_tenure(doc, method=None):
+	"""Temporary server-authoritative correction for new/draft Flexi Loans.
+
+	Lending maps the standard Application's month-based ``repayment_periods``
+	directly onto the Loan.  Once Flexi maps Fortnightly to Bi-Weekly, that 12
+	must become 26 before the Loan or automatic disbursement is validated.
+	"""
+	if not _eligible_temporary_tenure_loan(doc):
+		return
+
+	application = frappe.get_doc("Loan Application", doc.loan_application)
+	periods = _application_repayment_periods(application, doc.get("repayment_frequency"))
+	if periods:
+		doc.repayment_periods = periods
+
+
+def apply_temporary_repayment_tenure_to_disbursement(doc, method=None):
+	"""Set disbursement tenure before Lending creates or refreshes its schedule."""
+	if (
+		not temporary_tenure_workaround_enabled()
+		or doc.docstatus != 0
+		or doc.get("is_imported")
+		or not doc.get("against_loan")
+	):
+		return
+
+	loan = frappe.get_doc("Loan", doc.against_loan)
+	if not _eligible_temporary_tenure_loan(loan):
+		return
+
+	application = frappe.get_doc("Loan Application", loan.loan_application)
+	periods = _application_repayment_periods(application, doc.get("repayment_frequency") or loan.repayment_frequency)
+	if periods:
+		doc.tenure = periods
 
 MODE_OF_PAYMENT_MAP = {
 	"Bank - PPT": "Bank PPT",
@@ -157,16 +245,22 @@ def apply_purchase_invoice_loan_application(doc, method=None):
 
 
 def get_loan_application_dashboard_data(data=None):
-	"""Add app-owned PO and PI links to Loan Application Connections."""
+	"""Add app-owned related-document links to Loan Application Connections."""
 	data = frappe._dict(data or {})
 	transactions = data.setdefault("transactions", [])
 	if not any("Purchase Order" in group.get("items", []) for group in transactions):
 		transactions.append({"label": "Purchasing", "items": ["Purchase Order", "Purchase Invoice"]})
+	if not any("Co-Applicant" in group.get("items", []) for group in transactions):
+		# This is deliberately a dashboard relationship, rather than a workflow
+		# action. Frappe therefore shows the normal + action whenever the parent
+		# Loan Application is saved and the user has Co-Applicant create access.
+		transactions.append({"label": "Applicants", "items": ["Co-Applicant"]})
 
 	data.setdefault("non_standard_fieldnames", {}).update(
 		{
 			"Purchase Order": "custom_loan_application",
 			"Purchase Invoice": "custom_loan_application",
+			"Co-Applicant": "loan_application",
 		}
 	)
 	return data
