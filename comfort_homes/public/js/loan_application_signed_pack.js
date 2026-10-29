@@ -18,6 +18,7 @@ function comfort_document_title(row) {
 		"FORM-2": __("Form 2"),
 		"FINANCIAL-OBLIGATIONS": __("Summary of Financial Obligations"),
 		"CONSENT-FORM": __("Consent Form"),
+		"APPLICATION-ASSESSMENT": __("Application Assessment Summary"),
 	};
 	if (titles[row.document_code]) return titles[row.document_code];
 	return row.document_code || __("Customer Document");

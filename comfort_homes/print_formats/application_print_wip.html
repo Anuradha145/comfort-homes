@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+    @page {
+        size: A4 portrait;
+        margin: 10mm 12mm;
+        @bottom-right {
+            content: "Page " counter(page) " of " counter(pages);
+            font-family: "Segoe UI", sans-serif;
+            font-size: 7pt;
+            color: #6b7280;
+        }
+    }
+    body {
+        font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+        font-size: 8pt;
+        color: #1f2937;
+        line-height: 1.3;
+        background: #fff;
+    }
+    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+    .header-title h1 { font-size: 13pt; font-weight: 700; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; color: #111827; }
+    .header-meta { text-align: right; font-size: 8pt; color: #4b5563; }
+    .badge-status { display: inline-block; padding: 2px 8px; font-weight: 700; border-radius: 4px; background-color: #def7ec; color: #03543f; text-transform: uppercase; font-size: 7.5pt; }
+
+    .dashboard-panel { width: 100%; border-collapse: separate; border-spacing: 6px 0; margin: 0 -6px 10px -6px; }
+    .kpi-card { background: #f8fafc; border: 1px solid #e2e8f0; border-top: 3px solid #0f172a; padding: 5px 8px; width: 25%; vertical-align: top; }
+    .kpi-card.alert-dsr { border-top-color: #dc2626; background: #fef2f2; }
+    .kpi-label { font-size: 6.5pt; text-transform: uppercase; color: #64748b; font-weight: 600; margin-bottom: 2px; }
+    .kpi-value { font-size: 11pt; font-weight: 700; color: #0f172a; }
+    .kpi-card.alert-dsr .kpi-value { color: #991b1b; }
+
+    .section-heading { font-size: 8.5pt; font-weight: 700; margin: 8px 0 3px 0; padding: 2px 0 2px 5px; border-left: 3px solid #4b5563; background: #f1f5f9; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px; page-break-after: avoid; }
+
+    .info-grid { display: table; width: 100%; table-layout: fixed; }
+    .info-row { display: table-row; }
+    .info-cell { display: table-cell; width: 50%; padding: 2px 6px; vertical-align: top; box-sizing: border-box; }
+    .data-container { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #f1f5f9; padding-bottom: 1px; }
+    .label-text { font-weight: 600; color: #475569; font-size: 7.5pt; padding-right: 6px; white-space: nowrap; }
+    .value-text { color: #0f172a; text-align: right; word-break: break-all; }
+    .currency-highlight { font-weight: 600; }
+
+    .child-table { width: 100%; border-collapse: collapse; margin: 3px 0 6px 0; font-size: 7.5pt; }
+    .child-table th { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 3px 5px; text-align: left; font-weight: 600; color: #334155; font-size: 7pt; text-transform: uppercase; }
+    .child-table td { border: 1px solid #e2e8f0; padding: 2px 5px; }
+    .child-table td.amt { text-align: right; font-weight: 600; }
+    .child-table tr.total-row td { background: #f8fafc; font-weight: 700; border-top: 2px solid #cbd5e1; }
+
+    .footer-declaration { background-color: #f8fafc; border: 1px dashed #cbd5e1; padding: 6px 8px; margin-top: 8px; page-break-inside: avoid; }
+    .footer-declaration p { margin: 0; font-size: 7pt; color: #475569; }
+
+    .signoff-section { margin-top: 10px; page-break-inside: avoid; }
+    .signoff-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+    .signoff-table th, .signoff-table td { border: 1px solid #cbd5e1; padding: 5px 6px; text-align: left; vertical-align: top; font-size: 7.5pt; }
+    .signoff-table th { background-color: #f8fafc; font-weight: 600; color: #334155; width: 22%; }
+    .comment-box { height: 35px; }
+
+    .sig-grid { display: table; width: 100%; table-layout: fixed; margin-top: 4px; page-break-inside: avoid; }
+    .sig-cell { display: table-cell; width: 33.33%; padding: 3px 6px; vertical-align: top; }
+    .sig-box { border: 1px solid #e2e8f0; padding: 5px; min-height: 45px; background: #fafafa; }
+    .sig-label { font-size: 6.5pt; text-transform: uppercase; color: #64748b; font-weight: 600; margin-bottom: 2px; }
+    .sig-img { max-height: 40px; max-width: 100%; }
+</style>
+</head>
+<body>
+
+{#- ==================== UTILITY MACROS ==================== -#}
+{#- v() reads from web form (custom_flexi_*) first, then desk form (custom_*) -#}
+{% macro v(f, d) -%}
+    {{ doc.get(f) or doc.get(d) or '' }}
+{%- endmacro %}
+
+{% macro vn(f, d) -%}
+    {{ doc.get(f) or doc.get(d) or 0 }}
+{%- endmacro %}
+
+{% macro money(val) -%}
+    {%- if val -%}{{ frappe.format_value(val|float, {'fieldtype': 'Currency'}) }}{%- else -%}—{%- endif -%}
+{%- endmacro %}
+
+{#- mv() = money from dual-source -#}
+{% macro mv(f, d) -%}
+    {%- set val = doc.get(f) or doc.get(d) -%}
+    {%- if val -%}{{ frappe.format_value(val|float, {'fieldtype': 'Currency'}) }}{%- else -%}—{%- endif -%}
+{%- endmacro %}
+
+{% macro row2(label1, val1, label2, val2, is_currency=false) %}
+<div class="info-row">
+    <div class="info-cell"><div class="data-container">
+        <span class="label-text">{{ label1 }}</span>
+        <span class="value-text {% if is_currency %}currency-highlight{% endif %}">{{ val1 or '—' }}</span>
+    </div></div>
+    <div class="info-cell">{% if label2 %}<div class="data-container">
+        <span class="label-text">{{ label2 }}</span>
+        <span class="value-text {% if is_currency %}currency-highlight{% endif %}">{{ val2 or '—' }}</span>
+    </div>{% endif %}</div>
+</div>
+{% endmacro %}
+
+{#- Dual-source field values -#}
+{% set fathers_name     = doc.get('custom_flexi_fathers_name') or doc.get('custom_fathers_name') or '' %}
+{% set dob              = doc.get('custom_flexi_date_of_birth') or doc.get('custom_date_of_birth') %}
+{% set age              = doc.get('custom_flexi_age') or doc.get('custom_age') %}
+{% set marital          = doc.get('custom_flexi_marital_status') or doc.get('custom_marital_status') or '' %}
+{% set dependents       = doc.get('custom_flexi_number_of_dependents') or doc.get('custom_number_of_dependents') %}
+{% set housing          = doc.get('custom_flexi_housing_situation') or doc.get('custom_housing_situation') or '' %}
+{% set postal_addr      = doc.get('custom_flexi_postal_address') or doc.get('custom_postal_address') or '' %}
+{% set employer         = doc.get('custom_flexi_employer_name') or doc.get('custom_employer_name') or '' %}
+{% set occupation       = doc.get('custom_flexi_occupation') or doc.get('custom_occupation') or '' %}
+{% set emp_period       = doc.get('custom_flexi_employment_period') or doc.get('custom_employment_period') or '' %}
+{% set emp_contact      = doc.get('custom_flexi_employer_contact') or doc.get('custom_employer_contact') or '' %}
+{% set emp_address      = doc.get('custom_flexi_employer_address') or doc.get('custom_employer_address') or '' %}
+{% set cash_price       = doc.get('custom_flexi_cash_price') or doc.get('custom_cash_price') %}
+{% set surcharge_rate   = doc.get('custom_surcharge_rate') or doc.get('custom_flexi_surcharge_rate') %}
+{% set surcharge_amt    = doc.get('custom_surcharge_amount') or doc.get('custom_flexi_surcharge_amount') %}
+{% set eff_price        = doc.get('custom_effective_cash_price') or doc.get('custom_flexi_full_value') %}
+{% set deposit_amt      = doc.get('custom_flexi_deposit_amount') or doc.get('custom_deposit_amount') %}
+{% set deposit_pct      = doc.get('custom_flexi_deposit_percent') %}
+{% set bal_after_dep    = doc.get('custom_flexi_value_after_deposit') or doc.get('custom_value_after_deposit') %}
+{% set admin_fee        = doc.get('custom_flexi_admin_fee') or doc.get('custom_admin_fee') %}
+{% set admin_fee_rate   = doc.get('custom_admin_fee_rate') or 2.5 %}
+{% set doc_fee          = doc.get('custom_flexi_documentation_fee') or doc.get('custom_documentation_fee') %}
+{% set stamp_duty       = doc.get('custom_flexi_stamp_duty_fee') or doc.get('custom_stamp_duty_fee') %}
+{% set other_fee        = doc.get('custom_flexi_other_fee') %}
+{% set net_financed     = doc.get('custom_flexi_net_amount_financed') or doc.get('custom_net_amount_financed') %}
+{% set hp_acct_no       = doc.get('custom_flexi_hp_account_number') or doc.get('custom_hp_account_no') or '' %}
+{% set int_rate         = doc.get('custom_flexi_interest_rate') or doc.rate_of_interest %}
+{% set term_months      = doc.get('custom_flexi_term_months') or doc.repayment_periods %}
+{% set term_charges     = doc.get('custom_flexi_term_charges') or doc.total_payable_interest %}
+{% set total_recv       = doc.get('custom_flexi_total_receivable') or doc.total_payable_amount %}
+{% set pay_pref         = doc.get('custom_flexi_payment_period') or doc.get('custom_payment_method') or '' %}
+{% set tot_m_income     = doc.get('custom_flexi_total_monthly_income') or doc.get('custom_total_monthly_income') %}
+{% set tot_a_income     = doc.get('custom_flexi_total_annual_income') or doc.get('custom_total_annual_income') %}
+{% set tot_m_expenses   = doc.get('custom_flexi_total_monthly_expenses') or doc.get('custom_total_monthly_expenses') %}
+{% set net_m_income     = doc.get('custom_flexi_net_monthly_income') or doc.get('custom_net_monthly_income') %}
+{% set tot_obligations  = doc.get('custom_flexi_total_finance_obligations') or doc.get('custom_total_finance_obligations') %}
+{% set sel_dsr          = doc.get('custom_flexi_selected_dsr') or doc.get('custom_selected_dsr') or 35 %}
+{% set post_dsr         = doc.get('custom_flexi_post_dsr') or doc.get('custom_post_dsr') or 0 %}
+{% set pre_dsr          = doc.get('custom_flexi_pre_dsr') or doc.get('custom_pre_dsr') or 0 %}
+{% set dsr_margin       = doc.get('custom_flexi_dsr_margin') or doc.get('custom_dsr_margin') or 0 %}
+{% set dsr_net_income   = doc.get('custom_flexi_dsr_net_income') or doc.get('custom_dsr_net_income') %}
+{% set dsr_total_income = doc.get('custom_flexi_dsr_total_income') or doc.get('custom_dsr_total_income') %}
+{% set quotation_no     = doc.get('custom_flexi_quotation_number') or '' %}
+{% set first_inst_date  = doc.get('custom_flexi_first_instalment_date') or doc.get('custom_first_instalment_date') %}
+{% set last_inst_date   = doc.get('custom_flexi_last_instalment_date') %}
+{% set admin_fee_rate_v  = doc.get('custom_flexi_admin_fee_rate') or doc.get('custom_admin_fee_rate') or 2.5 %}
+{% set elig_status      = doc.get('custom_flexi_eligibility_status') or doc.get('custom_eligibility_status') or 'Not Assessed' %}
+{% set weekly_elig      = doc.get('custom_weekly_eligibility') %}
+{% set income_basis     = doc.get('custom_flexi_income_basis') or doc.get('custom_income_basis') or '' %}
+{% set items            = doc.get('custom_flexi_purchase_items') or doc.get('custom_purchase_items') or [] %}
+{% set incomes          = doc.get('custom_flexi_income_entries') or doc.get('custom_income_entries') or [] %}
+{% set expenses         = doc.get('custom_flexi_living_expenses') or doc.get('custom_living_expenses') or [] %}
+{% set obligations      = doc.get('custom_flexi_finance_obligations') or doc.get('custom_finance_obligations') or [] %}
+{% set contacts         = doc.get('custom_flexi_application_contacts') or doc.get('custom_application_contacts') or [] %}
+{% set co_applicants = get_co_applicants(doc.name) %}
+{% set has_co_applicants = co_applicants|length > 0 %}
+{% set household = namespace(income=(tot_m_income or 0), obligations=(tot_obligations or 0)) %}
+{% set spouse_first     = doc.get('custom_flexi_spouse_first_name') or doc.get('custom_spouse_first_name') or '' %}
+
+<!-- ========== HEADER ========== -->
+<table class="header-table">
+    <tr>
+        <td class="header-title">
+            <h1>Loan Application Summary</h1>
+            <div style="font-size:8pt; margin-top:2px; color:#64748b;">Comfort Home Furnishing — HP Assessment Sheet</div>
+        </td>
+        <td class="header-meta">
+            <strong>Application:</strong> {{ doc.name }}<br>
+            <strong>Date:</strong> {{ frappe.format(doc.posting_date, {"fieldtype":"Date"}) or 'N/A' }}<br>
+            {% if doc.get('custom_card_id') %}<strong>Card ID:</strong> {{ doc.custom_card_id }}<br>{% endif %}
+            {% if doc.get('custom_branchlocation') %}<strong>Branch:</strong> {{ doc.custom_branchlocation }}<br>{% endif %}
+            <span class="badge-status">{{ doc.status or 'Open' }}</span>
+        </td>
+    </tr>
+</table>
+
+<!-- ========== EXECUTIVE DASHBOARD ========== -->
+<table class="dashboard-panel">
+    <tr>
+        <td class="kpi-card">
+            <div class="kpi-label">Loan Amount</div>
+            <div class="kpi-value">{{ money(doc.loan_amount) }}</div>
+        </td>
+        <td class="kpi-card {% if post_dsr|float > sel_dsr|float %}alert-dsr{% endif %}">
+            <div class="kpi-label">Post-Application DSR</div>
+            <div class="kpi-value">{{ (post_dsr|float)|round(1) }}%</div>
+        </td>
+        <td class="kpi-card">
+            <div class="kpi-label">Max Allowed DSR</div>
+            <div class="kpi-value">{{ sel_dsr }}%</div>
+        </td>
+        <td class="kpi-card">
+            <div class="kpi-label">Eligibility</div>
+            <div class="kpi-value" style="font-size:9pt">{{ elig_status }}</div>
+        </td>
+    </tr>
+</table>
+
+<!-- ========== APPLICANT PROFILE ========== -->
+<div class="section-heading">Applicant Profile</div>
+<div class="info-grid">
+    {{ row2('Full Name', doc.applicant_name or doc.applicant or '—',
+            'Card ID', doc.get('custom_card_id') or '—') }}
+    {{ row2('Applicant Type', doc.applicant_type or '—',
+            'Applicant (Link)', doc.applicant or '—') }}
+    {{ row2('Date of Birth', frappe.format(dob, {"fieldtype":"Date"}) if dob else '—',
+            'Age', age or '—') }}
+    {{ row2('TIN Number', doc.get('custom_tin_number') or '—',
+            'FNPF Number', doc.get('custom_fnpf_number') or '—') }}
+    {{ row2("Father's Name", fathers_name or '—',
+            'Marital Status', marital or '—') }}
+    {{ row2('No. of Dependents', dependents or '—',
+            'Housing Situation', housing or '—') }}
+    {{ row2('Phone', doc.applicant_phone_number or '—',
+            'Email', doc.applicant_email_address or '—') }}
+    {{ row2('Customer Bank', doc.get('custom_customer_bank') or '—',
+            'Bank Account No', doc.get('custom_customer_bank_account_no') or '—') }}
+</div>
+
+<!-- ========== ADDRESS ========== -->
+<div class="section-heading">Address &amp; Employment</div>
+<div class="info-grid">
+    {{ row2('Address Line 1', doc.get('address_line_1') or '—',
+            'Suburb', doc.get('custom_suburb') or '—') }}
+    {{ row2('City', doc.get('custom_new_city') or doc.get('city') or '—',
+            'Province', doc.get('custom_province') or doc.get('state') or '—') }}
+    {{ row2('Country', doc.get('country') or '—',
+            'Postal Address', postal_addr or '—') }}
+    {{ row2('Employer', employer or '—',
+            'Occupation', occupation or '—') }}
+    {{ row2('Employment Period', emp_period or '—',
+            'Employer Contact', emp_contact or '—') }}
+</div>
+
+<!-- ========== PROPOSED HIRE PURCHASE ITEMS ========== -->
+<div class="section-heading">Proposed Hire Purchase Items</div>
+{% if items %}
+<table class="child-table">
+    <thead><tr>
+        <th style="width:5%">#</th>
+        <th>Product Description</th>
+        <th style="width:8%; text-align:right">Qty</th>
+        <th style="width:15%; text-align:right">Unit Price</th>
+        <th style="width:15%; text-align:right">Total</th>
+    </tr></thead>
+    <tbody>
+    {% for item in items %}
+    <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ item.product_description or item.item_name or item.description or '—' }}</td>
+        <td class="amt">{{ item.quantity or 1 }}</td>
+        <td class="amt">{{ money(item.unit_price) }}</td>
+        <td class="amt">{{ money(item.total_amount) }}</td>
+    </tr>
+    {% endfor %}
+    <tr class="total-row">
+        <td colspan="4" style="text-align:right">Total Purchase Value</td>
+        <td class="amt">{{ money(cash_price) }}</td>
+    </tr>
+    </tbody>
+</table>
+{% else %}
+<p style="color:#94a3b8; font-style:italic; margin:4px 0;">No purchase items recorded.</p>
+{% endif %}
+
+<!-- ========== HP FINANCIAL STRUCTURE ========== -->
+<div class="section-heading">HP Financial Structure</div>
+<div class="info-grid">
+    {{ row2('Cash Price of Goods', money(cash_price),
+            'Loan Product', doc.loan_product or '—') }}
+    {% if surcharge_rate %}
+    {{ row2('Surcharge Rate', (surcharge_rate or 0) ~ '%',
+            'Surcharge Amount', money(surcharge_amt)) }}
+    {{ row2('Effective Cash Price', money(eff_price), '', '') }}
+    {% endif %}
+    {{ row2('Deposit Amount', money(deposit_amt) ~ (' (' ~ deposit_pct ~ '%)' if deposit_pct else ''),
+            'Balance After Deposit', money(bal_after_dep), true) }}
+    {{ row2('Admin Fee (' ~ admin_fee_rate_v ~ '%)', money(admin_fee),
+            'Documentation Fee', money(doc_fee), true) }}
+    {% if stamp_duty or other_fee %}
+    {{ row2('Stamp Duty Fee', money(stamp_duty),
+            'Other Fee', money(other_fee) if other_fee else '—') }}
+    {% endif %}
+    {{ row2('Net Amount Financed', money(net_financed),
+            'HP Account No', hp_acct_no or '—', true) }}
+</div>
+
+<!-- ========== LOAN PRICING & TERMS ========== -->
+<div class="section-heading">Loan Pricing &amp; Terms</div>
+<div class="info-grid">
+    {{ row2('Loan Amount', money(doc.loan_amount),
+            'Interest Rate', (int_rate or 0) ~ '%') }}
+    {{ row2('Term (Months)', term_months or '—',
+            'Repayment Method', doc.repayment_method or '—') }}
+    {{ row2('Total Interest / Charges', money(term_charges),
+            'Total Payable', money(total_recv), true) }}
+    {{ row2('Monthly Repayment', money(doc.repayment_amount),
+            'Payment Preference', pay_pref or '—', true) }}
+    {#- Show instalment breakdown if available from web form -#}
+    {% if doc.get('custom_flexi_weekly_instalment_amount') %}
+    {{ row2('Weekly Instalment', money(doc.custom_flexi_weekly_instalment_amount),
+            'Fortnightly Instalment', money(doc.get('custom_flexi_fortnightly_instalment_amount')), true) }}
+    {{ row2('Bi-Monthly Instalment', money(doc.get('custom_flexi_bimonthly_instalment_amount')),
+            'Monthly Instalment', money(doc.get('custom_flexi_monthly_instalment_amount')), true) }}
+    {% endif %}
+    {% if first_inst_date or quotation_no %}
+    {{ row2('First Instalment Date', frappe.format(first_inst_date, {"fieldtype":"Date"}) if first_inst_date else '—',
+            'Quotation / Ref No', quotation_no or '—') }}
+    {% endif %}
+    {% if last_inst_date %}
+    {{ row2('Last Instalment Date', frappe.format(last_inst_date, {"fieldtype":"Date"}), '', '') }}
+    {% endif %}
+</div>
+
+<!-- ========== DSR / CREDIT ASSESSMENT ========== -->
+<div class="section-heading">Credit Underwriting &amp; DSR Analysis</div>
+<div class="info-grid">
+    {{ row2('Total Monthly Income', money(tot_m_income),
+            'Total Annual Income', money(tot_a_income), true) }}
+    {{ row2('Total Monthly Expenses', money(tot_m_expenses),
+            'Net Monthly Income', money(net_m_income), true) }}
+    {{ row2('Total Finance Obligations', money(tot_obligations),
+            'DSR Net Income', money(dsr_net_income), true) }}
+    {{ row2('Pre-DSR', (pre_dsr or 0) ~ '%',
+            'Post-DSR', (post_dsr or 0) ~ '%') }}
+    {{ row2('Selected Max DSR', (sel_dsr or 35) ~ '%',
+            'DSR Margin', (dsr_margin or 0) ~ '%') }}
+    {{ row2('Eligibility Status', elig_status,
+            'Weekly Eligibility', money(weekly_elig)) }}
+    {% if income_basis %}
+    <div class="info-row"><div class="info-cell" style="width:100%"><div class="data-container">
+        <span class="label-text">Income Basis / Notes</span>
+        <span class="value-text">{{ income_basis }}</span>
+    </div></div></div>
+    {% endif %}
+</div>
+
+<!-- ========== CO-APPLICANT HOUSEHOLD ASSESSMENT ========== -->
+{% if has_co_applicants %}
+<div class="section-heading">Applicant &amp; Co-Applicant Assessment Summary</div>
+<table class="child-table">
+  <thead><tr><th>Applicant</th><th style="width:28%; text-align:right">Monthly Income</th><th style="width:30%; text-align:right">Existing Financial Obligations</th></tr></thead>
+  <tbody>
+    <tr><td>{{ doc.applicant_name or doc.applicant or 'Primary Applicant' }}</td><td class="amt">{{ money(tot_m_income) }}</td><td class="amt">{{ money(tot_obligations) }}</td></tr>
+    {% for co_applicant in co_applicants %}
+      {% set co_income = co_applicant_monthly_income(co_applicant) %}
+      {% set co_obligations = co_applicant_financial_obligations(co_applicant) %}
+      {% set household.income = household.income + (co_income or 0) %}
+      {% set household.obligations = household.obligations + (co_obligations or 0) %}
+      <tr><td>{{ applicant_name(co_applicant) }}</td><td class="amt">{{ money(co_income) }}</td><td class="amt">{{ money(co_obligations) }}</td></tr>
+    {% endfor %}
+    <tr class="total-row"><td>Combined household total</td><td class="amt">{{ money(household.income) }}</td><td class="amt">{{ money(household.obligations) }}</td></tr>
+  </tbody>
+</table>
+<div style="font-size:7.5pt; color:#64748b; margin:4px 0 8px;">This assessment display combines the linked applicants’ recorded figures only; it does not alter the lending calculation or approval decision.</div>
+{% endif %}
+
+<!-- ========== INCOME TABLE ========== -->
+{# With a co-applicant, the household summary above is authoritative for this
+   assessment print.  Do not repeat only the primary applicant's rows below. #}
+{% if incomes and not has_co_applicants %}
+<div class="section-heading">Income Details</div>
+<table class="child-table">
+    <thead><tr><th>Source / Type</th><th style="width:15%">Frequency</th><th style="width:15%; text-align:right">Amount</th><th style="width:15%; text-align:right">Monthly</th></tr></thead>
+    <tbody>
+    {% for row in incomes %}
+    <tr>
+        <td>{{ row.income_type or row.source or '—' }}</td>
+        <td>{{ row.frequency or '—' }}</td>
+        <td class="amt">{{ money(row.amount) }}</td>
+        <td class="amt">{{ money(row.monthly_amount) }}</td>
+    </tr>
+    {% endfor %}
+    <tr class="total-row"><td colspan="3" style="text-align:right">Total Monthly Income</td><td class="amt">{{ money(tot_m_income) }}</td></tr>
+    </tbody>
+</table>
+{% endif %}
+
+<!-- ========== FINANCE OBLIGATIONS TABLE ========== -->
+{% if obligations and not has_co_applicants %}
+<div class="section-heading">Existing Finance Obligations</div>
+<table class="child-table">
+    <thead><tr><th>Institution / Description</th><th style="width:15%">Frequency</th><th style="width:15%; text-align:right">Amount</th><th style="width:15%; text-align:right">Monthly</th></tr></thead>
+    <tbody>
+    {% for row in obligations %}
+    <tr>
+        <td>{{ row.institution or row.creditor or row.description or '—' }}</td>
+        <td>{{ row.frequency or '—' }}</td>
+        <td class="amt">{{ money(row.amount) }}</td>
+        <td class="amt">{{ money(row.monthly_amount) }}</td>
+    </tr>
+    {% endfor %}
+    <tr class="total-row"><td colspan="3" style="text-align:right">Total Monthly Obligations</td><td class="amt">{{ money(tot_obligations) }}</td></tr>
+    </tbody>
+</table>
+{% endif %}
+
+<!-- ========== SPOUSE (if populated) ========== -->
+{% if spouse_first %}
+<div class="section-heading">Spouse Details</div>
+<div class="info-grid">
+    {% set sp_mid = doc.get('custom_flexi_spouse_middle_name') or doc.get('custom_spouse_middle_name') or '' %}
+    {% set sp_sur = doc.get('custom_flexi_spouse_surname') or doc.get('custom_spouse_surname') or '' %}
+    {% set sp_dob = doc.get('custom_flexi_spouse_dob') or doc.get('custom_spouse_dob') %}
+    {% set sp_mob = doc.get('custom_flexi_spouse_mobile') or doc.get('custom_spouse_mobile') or '' %}
+    {% set sp_emp = doc.get('custom_flexi_spouse_employer') or doc.get('custom_spouse_employer') or '' %}
+    {% set sp_occ = doc.get('custom_flexi_spouse_occupation') or doc.get('custom_spouse_occupation') or '' %}
+    {{ row2('Spouse Name', spouse_first ~ ' ' ~ sp_mid ~ ' ' ~ sp_sur,
+            'Spouse DOB', frappe.format(sp_dob, {"fieldtype":"Date"}) if sp_dob else '—') }}
+    {{ row2('Spouse Mobile', sp_mob or '—',
+            'Spouse Employer', sp_emp or '—') }}
+    {{ row2('Spouse Occupation', sp_occ or '—', '', '') }}
+</div>
+{% endif %}
+
+<!-- ========== CONTACTS TABLE ========== -->
+{% if contacts %}
+<div class="section-heading">Family Relatives &amp; Office Referees</div>
+<table class="child-table">
+    <thead><tr><th style="width:18%">Type</th><th>Full Name</th><th style="width:18%">Relationship</th><th style="width:20%">Mobile Number</th></tr></thead>
+    <tbody>
+    {% for c in contacts %}
+    <tr>
+        <td>{{ c.contact_type or '—' }}</td>
+        <td>{{ c.full_name or c.contact_name or '—' }}</td>
+        <td>{{ c.relationship or '—' }}</td>
+        <td>{{ c.mobile_number or c.phone or '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+<!-- ========== SIGNATURES ========== -->
+<div class="section-heading">Signatures &amp; Verification</div>
+<div class="sig-grid">
+    <div class="sig-cell">
+        <div class="sig-box">
+            <div class="sig-label">Applicant Signature</div>
+            {% if doc.get('custom_applicant_signature') %}<img class="sig-img" src="{{ doc.custom_applicant_signature }}">
+            {% else %}<div style="height:35px;"></div>{% endif %}
+        </div>
+    </div>
+    <div class="sig-cell">
+        <div class="sig-box">
+            <div class="sig-label">Witness: {{ doc.get('custom_witness_name') or '________________' }}</div>
+            {% if doc.get('custom_witness_signature') %}<img class="sig-img" src="{{ doc.custom_witness_signature }}">
+            {% elif doc.get('custom_cira_authority_signature') %}<img class="sig-img" src="{{ doc.custom_cira_authority_signature }}">
+            {% else %}<div style="height:35px;"></div>{% endif %}
+            {% if doc.get('custom_witness_address') %}<div style="font-size:7pt; color:#64748b;">{{ doc.custom_witness_address }}</div>{% endif %}
+            {% if doc.get('custom_witness_date') %}<div style="font-size:7pt; color:#64748b;">Date: {{ frappe.format(doc.custom_witness_date, {"fieldtype":"Date"}) }}</div>{% endif %}
+        </div>
+    </div>
+    <div class="sig-cell">
+        <div class="sig-box">
+            <div class="sig-label">Company Rep: {{ doc.get('custom_company_rep_name') or '________________' }}</div>
+            {% if doc.get('custom_company_rep_signature') %}<img class="sig-img" src="{{ doc.custom_company_rep_signature }}">
+            {% else %}<div style="height:35px;"></div>{% endif %}
+            {% if doc.get('custom_company_rep_date') %}<div style="font-size:7pt; color:#64748b;">Date: {{ frappe.format(doc.custom_company_rep_date, {"fieldtype":"Date"}) }}</div>{% endif %}
+        </div>
+    </div>
+</div>
+
+{% set cira_name = doc.get('custom_cira_authority_name') or doc.get('custom_cira_name') or '' %}
+{% set cira_ack = doc.get('custom_cira_authority_acknowledged') or doc.get('custom_cira_acknowledged') %}
+{% if cira_name or cira_ack %}
+<div style="margin-top:4px; font-size:7.5pt; color:#475569;">
+    <strong>CIRA Authority:</strong> {{ cira_name or '—' }}
+    {% if cira_ack %} — <span style="color:#03543f; font-weight:600;">✓ Acknowledged</span>{% endif %}
+</div>
+{% endif %}
+
+<!-- ========== ATTACHMENT SUMMARY ========== -->
+<div class="section-heading">Attachment Summary</div>
+{%- set attachments = frappe.get_all('File',
+    filters={'attached_to_doctype': 'Loan Application', 'attached_to_name': doc.name, 'is_private': ['in', [0,1]]},
+    fields=['file_name', 'file_size', 'creation', 'is_private'],
+    order_by='creation') -%}
+{% if attachments %}
+<table class="child-table">
+    <thead><tr><th style="width:5%">#</th><th>File Name</th><th style="width:15%; text-align:right">Size</th><th style="width:20%">Uploaded</th></tr></thead>
+    <tbody>
+    {% for att in attachments %}
+    <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ att.file_name }}</td>
+        <td class="amt">{{ (att.file_size / 1024)|round(1) ~ ' KB' if att.file_size else '—' }}</td>
+        <td>{{ frappe.format(att.creation, {"fieldtype":"Datetime"}) }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p style="color:#94a3b8; font-style:italic; margin:4px 0;">No attachments found.</p>
+{% endif %}
+
+<!-- ========== COMPLIANCE FOOTER ========== -->
+<div class="footer-declaration">
+    <p>
+        <strong>Compliance Declaration:</strong> This document is an automated data extract from Loan Application
+        <strong>{{ doc.name }}</strong> for <strong>{{ doc.applicant_name or doc.applicant or 'the applicant' }}</strong>.
+        Generated on <strong>{{ frappe.format(frappe.utils.today(), {"fieldtype":"Date"}) }}</strong> for underwriting review.
+        All financial calculations are system-generated. Verify source documents before final approval.
+    </p>
+</div>
+
+<!-- ========== ASSESSOR SIGN-OFF ========== -->
+<div class="signoff-section">
+    <div class="section-heading">Assessor Decision &amp; Sign-Off</div>
+    <table class="signoff-table">
+        <tr><th>Credit Decision</th><td>[ &nbsp; ] Approved &nbsp; &nbsp; [ &nbsp; ] Declined &nbsp; &nbsp; [ &nbsp; ] Defer / Escalate</td></tr>
+        <tr><th>Conditions / Notes</th><td class="comment-box"></td></tr>
+        <tr><th>Approved Amount</th><td></td></tr>
+        <tr><th>Assessor Signature &amp; Date</th><td></td></tr>
+    </table>
+</div>
+
+</body>
+</html>
+

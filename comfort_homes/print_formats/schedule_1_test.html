@@ -1,0 +1,168 @@
+<style>
+/* Flexible Purchase - legal instrument print system. Table/block layout only (wkhtmltopdf safe). Black on white, serif. */
+@page { size: A4; margin: 16mm 16mm 18mm 16mm; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { font-family: "Times New Roman", Times, "Liberation Serif", "Nimbus Roman", "DejaVu Serif", serif; font-size: 10.5pt; line-height: 1.38; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 10.5pt; line-height: 1.38; }
+td, th { vertical-align: top; padding: 0; word-wrap: break-word; }
+tr { page-break-inside: avoid; }
+p { margin: 0 0 5pt 0; text-align: justify; }
+b, .b { font-weight: bold; }
+.muted { color: #333; }
+.center { text-align: center; }
+.right { text-align: right; }
+
+/* ---- title block ---- */
+.head { text-align: center; margin: 0 0 10pt 0; }
+.org { font-size: 10pt; font-weight: bold; letter-spacing: 0.06em; text-transform: uppercase; }
+.org2 { font-size: 9.5pt; font-style: italic; margin-bottom: 8pt; }
+.title { font-size: 16pt; font-weight: bold; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1.2; margin: 4pt 0 2pt 0; }
+.subtitle { font-size: 10pt; font-style: italic; margin-top: 2pt; }
+.dbl { border-top: 0.75pt solid #000; border-bottom: 0.75pt solid #000; height: 3.2pt; margin-top: 8pt; }
+.refbox { margin: 6pt 0 10pt 0; border: 0.75pt solid #000; }
+.refbox td { padding: 3pt 7pt 4pt 7pt; border-right: 0.75pt solid #000; }
+.refbox td:last-child { border-right: none; }
+.refbox .rl { font-size: 8.5pt; font-style: italic; display: block; }
+.refbox .rv { font-weight: bold; font-size: 10.5pt; display: block; min-height: 12pt; }
+
+/* ---- key terms (formal particulars box) ---- */
+.key { margin: 4pt 0 12pt 0; border: 1pt solid #000; page-break-inside: avoid; }
+.key th { background: #e6e6e6; border-bottom: 0.75pt solid #000; padding: 3pt 7pt; font-size: 9.5pt; letter-spacing: 0.05em; text-transform: uppercase; text-align: left; }
+.key td { padding: 5pt 7pt 6pt 7pt; border-right: 0.75pt solid #000; }
+.key td:last-child { border-right: none; }
+.k-label { font-size: 8.5pt; font-style: italic; margin-bottom: 1pt; }
+.k-val { font-size: 13pt; font-weight: bold; line-height: 1.15; white-space: nowrap; }
+.k-sub { font-size: 8.5pt; font-style: italic; }
+
+/* ---- headings ---- */
+.sec { font-size: 10.5pt; font-weight: bold; letter-spacing: 0.06em; text-transform: uppercase; text-align: center; border-bottom: 0.75pt solid #000; padding-bottom: 2pt; margin: 14pt 0 7pt 0; page-break-after: avoid; }
+.lead { margin: 0 0 8pt 0; }
+
+/* ---- numbered clauses (hanging indent) ---- */
+.cl { margin: 0 0 7pt 0; padding-left: 11mm; position: relative; page-break-inside: avoid; }
+.cl .n { position: absolute; left: 0; top: 0; width: 10mm; font-weight: bold; }
+.cl .h { font-weight: bold; margin-bottom: 2pt; }
+.cl p { margin: 0 0 4pt 0; text-align: justify; }
+.cl ul { margin: 2pt 0 4pt 0; padding-left: 14pt; }
+.cl li { margin: 0 0 2pt 0; text-align: justify; }
+.sub { padding-left: 8mm; margin: 0 0 3pt 0; text-align: justify; }
+
+/* ---- ruled grids ---- */
+.kv { border: 0.75pt solid #000; }
+.kv td { padding: 4pt 7pt; border: 0.5pt solid #000; }
+.kv .l { background: #f0f0f0; width: 30%; font-weight: normal; }
+.kv .v { font-weight: bold; }
+
+.fin { border: 0.75pt solid #000; }
+.fin td { padding: 3.5pt 7pt; border: 0.5pt solid #000; }
+.fin .r { width: 12mm; font-weight: bold; white-space: nowrap; text-align: center; }
+.fin .cur { width: 7mm; text-align: right; padding-right: 2pt; border-right: none; }
+.fin .amt { width: 30mm; text-align: right; font-weight: bold; white-space: nowrap; border-left: none; }
+.fin tr.strong td { border-top: 2.25pt double #000; background: #ececec; font-weight: bold; }
+.fin tr.hl td { background: #f4f4f4; font-weight: bold; }
+
+.goods { border: 0.75pt solid #000; }
+.goods th { text-align: left; font-size: 9.5pt; font-weight: bold; padding: 3pt 7pt; background: #e6e6e6; border: 0.5pt solid #000; }
+.goods td { padding: 4pt 7pt; border: 0.5pt solid #000; height: 18pt; }
+.goods .no { width: 11mm; text-align: center; }
+.goods .q { width: 16mm; text-align: center; }
+.goods .p { width: 30mm; text-align: right; white-space: nowrap; }
+
+/* ---- prescribed notices ---- */
+.notice { border: 2.25pt solid #000; padding: 9pt 14pt; margin: 12pt 0; text-align: center; font-weight: bold; page-break-inside: avoid; }
+.notice .nt { font-size: 12pt; letter-spacing: 0.1em; margin-bottom: 4pt; }
+.notice-soft { border: 1.5pt solid #000; padding: 8pt 14pt 6pt 14pt; margin: 12pt 0; page-break-inside: avoid; }
+.notice-soft .nt { font-weight: bold; text-align: center; letter-spacing: 0.04em; margin-bottom: 5pt; padding-bottom: 3pt; border-bottom: 0.75pt solid #000; }
+.notice-soft p { margin: 0 0 4pt 0; text-align: justify; }
+
+/* ---- execution blocks ---- */
+.sign { margin-top: 14pt; page-break-inside: avoid; }
+.sign td { padding: 0 12pt 0 0; vertical-align: top; }
+.sign td:last-child { padding-right: 0; }
+.sign .who { font-weight: bold; text-transform: uppercase; font-size: 9.5pt; letter-spacing: 0.05em; margin-bottom: 4pt; }
+.sign .box { height: 20mm; border-bottom: 0.9pt solid #000; }
+.sign .cap { font-size: 8.5pt; font-style: italic; margin-top: 2pt; }
+.sign .line { margin-top: 7pt; border-bottom: 0.5pt solid #000; padding-bottom: 1pt; min-height: 13pt; }
+.sign .line span { font-size: 9pt; font-style: italic; }
+.sig-img { max-width: 62mm; max-height: 18mm; display: block; }
+.block { page-break-inside: avoid; }
+.avoid { page-break-inside: avoid; }
+.pagebreak { page-break-before: always; }
+</style>
+{# ===== shared setup - identical in all six formats ===== #}
+{% macro money(v) %}{{ "{:,.2f}".format((v or 0)|float) }}{% endmacro %}
+{% set period_label = doc.custom_flexi_payment_period or "Monthly" %}
+{% set period_key = period_label|lower|replace("-", "")|replace(" ", "") %}
+{% set count_map = {"weekly": doc.custom_flexi_weekly_instalments, "fortnightly": doc.custom_flexi_fortnightly_instalments, "bimonthly": doc.custom_flexi_bimonthly_instalments, "monthly": doc.custom_flexi_monthly_instalments} %}
+{% set amount_map = {"weekly": doc.custom_flexi_weekly_instalment_amount, "fortnightly": doc.custom_flexi_fortnightly_instalment_amount, "bimonthly": doc.custom_flexi_bimonthly_instalment_amount, "monthly": doc.custom_flexi_monthly_instalment_amount} %}
+{% set n_instalments = count_map.get(period_key) or doc.repayment_periods or "" %}
+{% set instalment_amount = amount_map.get(period_key) or doc.repayment_amount or 0 %}
+{% set addr_parts = [doc.address_line_1, (doc.address_line_2 if doc.address_line_2 != doc.address_line_1 else none), (doc.custom_suburb or doc.suburb), doc.city, (doc.custom_province if doc.custom_province != doc.city else none), doc.country, (doc.zip_code if doc.zip_code and doc.zip_code != 0 else none)] %}
+{% set address = addr_parts|select|join(", ") %}
+{% set items = doc.custom_flexi_purchase_items or [] %}
+{% set office = doc.company_registered_office or "Lot 18 Yarawa Road, Nabua, Suva, Central Division, Fiji" %}
+{% set hirer_signature = doc.hirer_signature or doc.custom_applicant_signature or "" %}
+{% set hirer_date = doc.hirer_signature_date or doc.custom_flexi_hirer_signature_date or "" %}
+{% set rep_name = doc.company_representative_name or doc.custom_flexi_company_representative_name or "" %}
+{% set rep_signature = doc.company_representative_signature or doc.custom_flexi_company_representative_signature or "" %}
+{% set rep_date = doc.company_representative_date or doc.custom_flexi_company_representative_date or "" %}
+{% set co_applicants = get_co_applicants(doc.name) %}
+{% set has_co_applicants = co_applicants|length > 0 %}
+{% set hirer_names = doc.applicant_name or "" %}
+{% set items_total = namespace(value=0) %}{% for item in items %}{% set items_total.value = items_total.value + (item.total_amount or 0) %}{% endfor %}
+{% set cost_of_goods = doc.custom_flexi_cash_price or items_total.value %}
+<div class="head">
+<div class="org">Comfort Home Furnishing Pte Limited</div>
+<div class="org2">trading as Flexible Purchase</div>
+<div class="title">Schedule 1: Contents of credit contract</div>
+<div class="subtitle">Section 15 of the Consumer Credit Act 1999</div>
+<div class="dbl"></div>
+</div>
+<table class="refbox"><tr>
+<td style="width:30%;"><span class="rl">HP Account No.</span><span class="rv">{{ doc.custom_flexi_hp_account_number or "" }}</span></td>
+<td style="width:30%;"><span class="rl">Quotation No.</span><span class="rv">{{ doc.custom_flexi_quotation_number or "" }}</span></td>
+<td style="width:40%;"><span class="rl">Hirer / Borrower</span><span class="rv">{{ hirer_names }}</span></td>
+</tr></table>
+
+<table class="key">
+<tr><th colspan="5">Key terms of this agreement</th></tr>
+<tr>
+<td style="width:24%;"><div class="k-label">Total payable</div><div class="k-val">$ {{ money(doc.total_payable_amount) }}</div></td>
+<td style="width:22%;"><div class="k-label">Each installment</div><div class="k-val">$ {{ money(instalment_amount) }}</div><div class="k-sub">{{ period_label|lower }}</div></td>
+<td style="width:18%;"><div class="k-label">Number of installments</div><div class="k-val">{{ n_instalments }}</div><div class="k-sub">over {{ doc.custom_flexi_term_months or "" }} months</div></td>
+<td style="width:20%;"><div class="k-label">First installment</div><div class="k-val">{{ frappe.utils.formatdate(doc.custom_flexi_first_instalment_date, "dd-mm-yyyy") if doc.custom_flexi_first_instalment_date else "" }}</div></td>
+<td style="width:16%;"><div class="k-label">Annual interest rate</div><div class="k-val">{{ doc.custom_flexi_interest_rate or "" }}%</div><div class="k-sub">fixed for the term</div></td>
+</tr></table>
+<div class="cl "><span class="n">(A)</span><div class="h">Credit provider’s name</div><p><b>COMFORT HOME FURNISHING PTE LIMITED TRADING AS FLEXIBLE PURCHASE</b>, a limited liability company duly registered under the laws of Fiji and having its registered office at {{ office }}.</p><p class="b" style="margin-top:5pt;">Name and address of borrower:</p><p>{{ hirer_names }}<br/>{{ address }}</p></div>
+<div class="cl "><span class="n">(B)</span><div class="h">Amount of credit</div><table class="fin"><tr><td class="r" style="width:7mm;">I</td><td>Total amount of the credit</td><td class="cur">$</td><td class="amt">{{ money(doc.total_payable_amount) }}</td></tr><tr><td class="r">II</td><td>Number of Installments</td><td class="cur"></td><td class="amt">{{ n_instalments }}</td></tr></table></div>
+<div class="cl "><span class="n">(C)</span><div class="h">Annual percentage rate or rates</div><p>A rate of <b>{{ doc.custom_flexi_interest_rate or "" }}%</b> per annum will be levied on the net financed amount and is fixed for the term of the contract.</p></div>
+<div class="cl "><span class="n">(D)</span><div class="h">Calculation of interest charges</div><table class="fin"><tr><td>Cost Price</td><td class="cur">$</td><td class="amt">{{ money(cost_of_goods) }}</td></tr><tr><td>Less Deposit</td><td class="cur">$</td><td class="amt">{{ money(doc.custom_flexi_deposit_amount) }}</td></tr><tr><td>Balance after deposit</td><td class="cur">$</td><td class="amt">{{ money(doc.custom_flexi_value_after_deposit) }}</td></tr><tr><td>Document Fee</td><td class="cur">$</td><td class="amt">{{ money(doc.custom_flexi_documentation_fee) }}</td></tr><tr><td>Admin Fees</td><td class="cur">$</td><td class="amt">{{ money(doc.custom_flexi_admin_fee) }}</td></tr><tr><td>Interest</td><td class="cur">$</td><td class="amt">{{ money(doc.total_payable_interest) }}</td></tr><tr class="strong"><td>Total Payable</td><td class="cur">$</td><td class="amt">{{ money(doc.total_payable_amount) }}</td></tr></table></div>
+<div class="cl "><span class="n">(E)</span><div class="h">Total amount of interest charges payable</div><p>The total amount of interest charges payable under the contract is $ <b>{{ money(doc.total_payable_interest) }}</b>, calculated as per clause (D) above.</p></div>
+<div class="cl "><span class="n">(F)</span><div class="h">Repayments</div><p>{{ period_label }} installments of $ <b>{{ money(instalment_amount) }}</b> for a period of <b>{{ doc.repayment_periods or "" }}</b> months and a final payment of $ <b>{{ money(instalment_amount) }}</b></p><p>The first installment shall commence on <b>{{ frappe.utils.formatdate(doc.custom_flexi_first_instalment_date, "dd-mm-yyyy") if doc.custom_flexi_first_instalment_date else "" }}</b></p></div>
+<div class="cl "><span class="n">(G)</span><div class="h">Credit fees and charges</div><p>The document fee payable shall be $ <b>{{ money(doc.custom_flexi_documentation_fee) }}</b> per Hire Purchase Agreement.</p></div>
+<div class="cl "><span class="n">(H)</span><div class="h">Stamp duty and statutory charges</div><p>I. The customer shall be liable for payment of all applicable stamp duty and any other statutory charges payable in respect of the contract.</p></div>
+<div class="cl "><span class="n">(I)</span><div class="h">Admin fees</div><p>I. {{ doc.custom_flexi_admin_fee_rate or "" }}% shall be charged on the total amount as per the quotation</p></div>
+<div class="cl "><span class="n">(J)</span><div class="h">Changes affecting interest and credit fees and charges</div><p>I. If the annual percentage rate or rates or frequency of payment of a credit fee or charge or installment payable under the contract may be charged or a new credit fee or change may be imposed, Flexible Purchase shall notify the mortgagor of such changes in writing 30 days prior to the implementation of such charges.</p><p>II. Comfort Home Furnishing Pte Limited T/A Flexible Purchase may implement the changes in (I) above without the consent of the Mortgagor.</p></div>
+<div class="cl "><span class="n">(K)</span><div class="h">Statement of account</div><p>Not applicable as the interest rate is fixed.</p></div>
+<div class="cl "><span class="n">(L)</span><div class="h">Default notice and default rate</div><p>I. If the Mortgagor defaults in any two consecutive payments, then Comfort Home Furnishing Pte Limited T/A Flexible Purchase shall issue a 21 day notice to the Mortgagor to remedy the default.</p><p>II. If the default has not been remedied within the notice period, then Comfort Home Furnishing Pte Limited T/A Flexible Purchase may enforce proceedings against the Mortgagor.</p><p>III. If the Mortgagor defaults in any of the payments, then the Mortgagor shall be liable to pay a <b>DEFAULT RATE</b> of <b>{{ doc.custom_default_rate or "" }}%</b> per month on the outstanding amount.</p><p>This default rate shall accrue from the date of default.</p></div>
+<div class="cl "><span class="n">(M)</span><div class="h">Enforcement expenses</div><p>I. If an event of default occurs under the Credit contract and or the security document, Flexible Purchase may recover reasonable enforcement expenses (including all legal fees) and may debit those expenses to your account.</p></div>
+<div class="cl "><span class="n">(N)</span><div class="h">Insurance</div><p>I. The hirer agrees that the risk in the chattels passes to the Hirer at the time of delivery and or possession of the chattels and as such the Hirer may insure the chattels to cover all risk to the full replacement value of the chattels.</p><p>II. In the event of any loss or damage to the chattels by any means whatsoever, the Hirer remains liable to the Owner for the monthly payments and the contract sum.</p></div>
+<div class="cl "><span class="n">(O)</span><div class="h">Early settlement</div><p>I. In case the Hirer is to pay or her installments under the credit contract before the term of the contract, the mortgagor shall be entitled to a rebate calculated according to the Rule of 78 method as prescribed under the Consumer Credit Act.</p></div>
+<div class="block"><div class="sec">Customer acknowledgement and signature</div><table class="sign"><tr><td style="width:50%;"><div class="who">Borrower</div><div class="box">{% if hirer_signature %}<img class="sig-img" src="{{ hirer_signature }}"/>{% endif %}</div><div class="cap">Signature</div>
+<div class="line"><span>Name:</span>&nbsp; <b>{{ hirer_names }}</b></div><div class="line"><span>Date:</span>&nbsp; <b>
+        {% set witness_date = doc.custom_witness_date or frappe.utils.nowdate() %}
+        {{ frappe.utils.formatdate(witness_date, "dd-MM-yyyy") }}
+    </b></div></td><td style="width:50%;"><div class="who">Signed for CHFPL T/A Flexible Purchase </div><div class="box">{% if rep_signature %}<img class="sig-img" src="{{ rep_signature }}"/>{% endif %}</div><div class="cap">Signature</div>
+<div class="line"><span>Name:</span>&nbsp; <b>{{ rep_name }}</b></div><div class="line"><span>Date:</span>&nbsp; <b>
+        {% set witness_date = doc.custom_witness_date or frappe.utils.nowdate() %}
+        {{ frappe.utils.formatdate(witness_date, "dd-MM-yyyy") }}
+    </b></div></td></tr></table>
+</div>
+
+{% if has_co_applicants %}
+{% for co_applicant in co_applicants %}
+<table class="sign"><tr><td style="width:50%;"><div class="who">Co-applicant signature</div><div class="box"></div><div class="cap">Signature</div><div class="line"><span>Name:</span>&nbsp; <b>{{ applicant_name(co_applicant) }}</b></div><div class="line"><span>Date:</span>&nbsp; <b>{% set witness_date = doc.custom_witness_date or frappe.utils.nowdate() %}{{ frappe.utils.formatdate(witness_date, "dd-MM-yyyy") }}</b></div></td><td></td></tr></table>
+{% endfor %}
+{% endif %}
+

@@ -1,0 +1,148 @@
+<style>
+/* Flexible Purchase - legal instrument print system. Table/block layout only (wkhtmltopdf safe). Black on white, serif. */
+@page { size: A4; margin: 16mm 16mm 18mm 16mm; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { font-family: "Times New Roman", Times, "Liberation Serif", "Nimbus Roman", "DejaVu Serif", serif; font-size: 10.5pt; line-height: 1.38; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 10.5pt; line-height: 1.38; }
+td, th { vertical-align: top; padding: 0; word-wrap: break-word; }
+tr { page-break-inside: avoid; }
+p { margin: 0 0 5pt 0; text-align: justify; }
+b, .b { font-weight: bold; }
+.muted { color: #333; }
+.center { text-align: center; }
+.right { text-align: right; }
+
+/* ---- title block ---- */
+.head { text-align: center; margin: 0 0 10pt 0; }
+.org { font-size: 10pt; font-weight: bold; letter-spacing: 0.06em; text-transform: uppercase; }
+.org2 { font-size: 9.5pt; font-style: italic; margin-bottom: 8pt; }
+.title { font-size: 16pt; font-weight: bold; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1.2; margin: 4pt 0 2pt 0; }
+.subtitle { font-size: 10pt; font-style: italic; margin-top: 2pt; }
+.dbl { border-top: 0.75pt solid #000; border-bottom: 0.75pt solid #000; height: 3.2pt; margin-top: 8pt; }
+.refbox { margin: 6pt 0 10pt 0; border: 0.75pt solid #000; }
+.refbox td { padding: 3pt 7pt 4pt 7pt; border-right: 0.75pt solid #000; }
+.refbox td:last-child { border-right: none; }
+.refbox .rl { font-size: 8.5pt; font-style: italic; display: block; }
+.refbox .rv { font-weight: bold; font-size: 10.5pt; display: block; min-height: 12pt; }
+
+/* ---- key terms (formal particulars box) ---- */
+.key { margin: 4pt 0 12pt 0; border: 1pt solid #000; page-break-inside: avoid; }
+.key th { background: #e6e6e6; border-bottom: 0.75pt solid #000; padding: 3pt 7pt; font-size: 9.5pt; letter-spacing: 0.05em; text-transform: uppercase; text-align: left; }
+.key td { padding: 5pt 7pt 6pt 7pt; border-right: 0.75pt solid #000; }
+.key td:last-child { border-right: none; }
+.k-label { font-size: 8.5pt; font-style: italic; margin-bottom: 1pt; }
+.k-val { font-size: 13pt; font-weight: bold; line-height: 1.15; white-space: nowrap; }
+.k-sub { font-size: 8.5pt; font-style: italic; }
+
+/* ---- headings ---- */
+.sec { font-size: 10.5pt; font-weight: bold; letter-spacing: 0.06em; text-transform: uppercase; text-align: center; border-bottom: 0.75pt solid #000; padding-bottom: 2pt; margin: 14pt 0 7pt 0; page-break-after: avoid; }
+.lead { margin: 0 0 8pt 0; }
+
+/* ---- numbered clauses (hanging indent) ---- */
+.cl { margin: 0 0 7pt 0; padding-left: 11mm; position: relative; page-break-inside: avoid; }
+.cl .n { position: absolute; left: 0; top: 0; width: 10mm; font-weight: bold; }
+.cl .h { font-weight: bold; margin-bottom: 2pt; }
+.cl p { margin: 0 0 4pt 0; text-align: justify; }
+.cl ul { margin: 2pt 0 4pt 0; padding-left: 14pt; }
+.cl li { margin: 0 0 2pt 0; text-align: justify; }
+.sub { padding-left: 8mm; margin: 0 0 3pt 0; text-align: justify; }
+
+/* ---- ruled grids ---- */
+.kv { border: 0.75pt solid #000; }
+.kv td { padding: 4pt 7pt; border: 0.5pt solid #000; }
+.kv .l { background: #f0f0f0; width: 30%; font-weight: normal; }
+.kv .v { font-weight: bold; }
+
+.fin { border: 0.75pt solid #000; }
+.fin td { padding: 3.5pt 7pt; border: 0.5pt solid #000; }
+.fin .r { width: 12mm; font-weight: bold; white-space: nowrap; text-align: center; }
+.fin .cur { width: 7mm; text-align: right; padding-right: 2pt; border-right: none; }
+.fin .amt { width: 30mm; text-align: right; font-weight: bold; white-space: nowrap; border-left: none; }
+.fin tr.strong td { border-top: 2.25pt double #000; background: #ececec; font-weight: bold; }
+.fin tr.hl td { background: #f4f4f4; font-weight: bold; }
+
+.goods { border: 0.75pt solid #000; }
+.goods th { text-align: left; font-size: 9.5pt; font-weight: bold; padding: 3pt 7pt; background: #e6e6e6; border: 0.5pt solid #000; }
+.goods td { padding: 4pt 7pt; border: 0.5pt solid #000; height: 18pt; }
+.goods .no { width: 11mm; text-align: center; }
+.goods .q { width: 16mm; text-align: center; }
+.goods .p { width: 30mm; text-align: right; white-space: nowrap; }
+
+/* ---- prescribed notices ---- */
+.notice { border: 2.25pt solid #000; padding: 9pt 14pt; margin: 12pt 0; text-align: center; font-weight: bold; page-break-inside: avoid; }
+.notice .nt { font-size: 12pt; letter-spacing: 0.1em; margin-bottom: 4pt; }
+.notice-soft { border: 1.5pt solid #000; padding: 8pt 14pt 6pt 14pt; margin: 12pt 0; page-break-inside: avoid; }
+.notice-soft .nt { font-weight: bold; text-align: center; letter-spacing: 0.04em; margin-bottom: 5pt; padding-bottom: 3pt; border-bottom: 0.75pt solid #000; }
+.notice-soft p { margin: 0 0 4pt 0; text-align: justify; }
+
+/* ---- execution blocks ---- */
+.sign { margin-top: 14pt; page-break-inside: avoid; }
+.sign td { padding: 0 12pt 0 0; vertical-align: top; }
+.sign td:last-child { padding-right: 0; }
+.sign .who { font-weight: bold; text-transform: uppercase; font-size: 9.5pt; letter-spacing: 0.05em; margin-bottom: 4pt; }
+.sign .box { height: 20mm; border-bottom: 0.9pt solid #000; }
+.sign .cap { font-size: 8.5pt; font-style: italic; margin-top: 2pt; }
+.sign .line { margin-top: 7pt; border-bottom: 0.5pt solid #000; padding-bottom: 1pt; min-height: 13pt; }
+.sign .line span { font-size: 9pt; font-style: italic; }
+.sig-img { max-width: 62mm; max-height: 18mm; display: block; }
+.block { page-break-inside: avoid; }
+.avoid { page-break-inside: avoid; }
+.pagebreak { page-break-before: always; }
+</style>
+{# ===== shared setup - identical in all six formats ===== #}
+{% macro money(v) %}{{ "{:,.2f}".format((v or 0)|float) }}{% endmacro %}
+{% set period_label = doc.custom_flexi_payment_period or "Monthly" %}
+{% set period_key = period_label|lower|replace("-", "")|replace(" ", "") %}
+{% set count_map = {"weekly": doc.custom_flexi_weekly_instalments, "fortnightly": doc.custom_flexi_fortnightly_instalments, "bimonthly": doc.custom_flexi_bimonthly_instalments, "monthly": doc.custom_flexi_monthly_instalments} %}
+{% set amount_map = {"weekly": doc.custom_flexi_weekly_instalment_amount, "fortnightly": doc.custom_flexi_fortnightly_instalment_amount, "bimonthly": doc.custom_flexi_bimonthly_instalment_amount, "monthly": doc.custom_flexi_monthly_instalment_amount} %}
+{% set n_instalments = count_map.get(period_key) or doc.repayment_periods or "" %}
+{% set instalment_amount = amount_map.get(period_key) or doc.repayment_amount or 0 %}
+{% set addr_parts = [doc.address_line_1, (doc.address_line_2 if doc.address_line_2 != doc.address_line_1 else none), (doc.custom_suburb or doc.suburb), doc.city, (doc.custom_province if doc.custom_province != doc.city else none), doc.country, (doc.zip_code if doc.zip_code and doc.zip_code != 0 else none)] %}
+{% set address = addr_parts|select|join(", ") %}
+{% set items = doc.custom_flexi_purchase_items or [] %}
+{% set office = doc.company_registered_office or "Lot 18 Yarawa Road, Nabua, Suva, Central Division, Fiji" %}
+{% set hirer_signature = doc.hirer_signature or doc.custom_applicant_signature or "" %}
+{% set hirer_date = doc.hirer_signature_date or doc.custom_flexi_hirer_signature_date or "" %}
+{% set rep_name = doc.company_representative_name or doc.custom_flexi_company_representative_name or "" %}
+{% set rep_signature = doc.company_representative_signature or doc.custom_flexi_company_representative_signature or "" %}
+{% set rep_date = doc.company_representative_date or doc.custom_flexi_company_representative_date or "" %}
+{% set co_applicants = get_co_applicants(doc.name) %}
+{% set has_co_applicants = co_applicants|length > 0 %}
+{% set hirer_names = doc.applicant_name or "" %}
+<div class="head">
+<div class="org">Comfort Home Furnishing Pte Limited</div>
+<div class="org2">trading as Flexible Purchase</div>
+<div class="title">Consent form</div>
+
+<div class="dbl"></div>
+</div>
+<table class="refbox"><tr>
+<td style="width:30%;"><span class="rl">HP Account No.</span><span class="rv">{{ doc.custom_flexi_hp_account_number or "" }}</span></td>
+<td style="width:30%;"><span class="rl">Quotation No.</span><span class="rv">{{ doc.custom_flexi_quotation_number or "" }}</span></td>
+<td style="width:40%;"><span class="rl">Hirer / Borrower</span><span class="rv">{{ hirer_names }}</span></td>
+</tr></table>
+
+{% set customer_date = doc.form2_customer_date or doc.custom_flexi_form2_date %}
+<p class="lead" style="font-size:10.5pt;">I, <b>{{ hirer_names }}</b> hereby authorize Comfort Home Furnishing Pte Limited T/A Flexible Purchase to:</p>
+<div class="cl" style="font-size:10.5pt;"><span class="n">(a)</span>Submit credit information on me in relation to a credit transaction with <b>{{ hirer_names }}</b> on the <b>{{ frappe.utils.formatdate(doc.form2_date, "dd/mm/yy") if doc.form2_date else "" }}</b>, to a credit reporting agency licensed under the Fair Reporting of Credit Act 2016.</div>
+<p class="center muted" style="margin:6pt 0;">or</p>
+<div class="cl" style="font-size:10.5pt;"><span class="n">(b)</span>Obtain credit information on me from a credit reporting agency licensed under the said Act.</div>
+<table class="sign"><tr><td style="width:55%;"><div class="who">Customer</div><div class="box">{% if doc.custom_applicant_signature %}<img class="sig-img" src="{{ doc.custom_applicant_signature }}"/>{% endif %}</div><div class="cap">Signature</div>
+<div class="line"><span>Name:</span>&nbsp; <b>{{ hirer_names }}</b></div><div class="line"><span>Date:</span>&nbsp; <b>
+        {% set witness_date = doc.custom_witness_date or frappe.utils.nowdate() %}
+        {{ frappe.utils.formatdate(witness_date, "dd-MM-yyyy") }}
+    </b></div></td><td></td></tr></table>
+
+{% if has_co_applicants %}
+{% for co_applicant in co_applicants %}
+<div class="notice" style="text-align:left; margin-top:10pt; page-break-inside:avoid;">
+  <p class="lead" style="font-size:10.5pt;">I, <b>{{ applicant_name(co_applicant) }}</b> hereby authorize Comfort Home Furnishing Pte Limited T/A Flexible Purchase to:</p>
+  <div class="cl" style="font-size:10.5pt;"><span class="n">(a)</span>Submit credit information on me in relation to a credit transaction with <b>{{ applicant_name(co_applicant) }}</b> on the <b>{{ frappe.utils.formatdate(doc.form2_date, "dd/mm/yy") if doc.form2_date else "" }}</b>, to a credit reporting agency licensed under the Fair Reporting of Credit Act 2016.</div>
+  <p class="center muted" style="margin:6pt 0;">or</p>
+  <div class="cl" style="font-size:10.5pt;"><span class="n">(b)</span>Obtain credit information on me from a credit reporting agency licensed under the said Act.</div>
+</div>
+<table class="sign"><tr><td style="width:55%;"><div class="who">Co-applicant</div><div class="box"></div><div class="cap">Signature</div><div class="line"><span>Name:</span>&nbsp; <b>{{ applicant_name(co_applicant) }}</b></div><div class="line"><span>Date:</span>&nbsp; <b>{% set witness_date = doc.custom_witness_date or frappe.utils.nowdate() %}{{ frappe.utils.formatdate(witness_date, "dd-MM-yyyy") }}</b></div></td><td></td></tr></table>
+{% endfor %}
+{% endif %}
+

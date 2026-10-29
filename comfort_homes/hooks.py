@@ -35,6 +35,12 @@ after_migrate = [
 after_install = "comfort_homes.webform_setup.setup_web_form_and_print_formats"
 after_sync = "comfort_homes.webform_setup.setup_web_form_and_print_formats"
 
+# Customer-document Jinja helpers.  They expose linked Co-Applicant details
+# only where a print format explicitly requests them.
+jinja = {
+	"methods": "comfort_homes.print_helpers",
+}
+
 # Apps
 # ------------------
 
@@ -77,21 +83,7 @@ fixtures = [
 	},
 	{
 		"dt": "Loan Document Template",
-		"filters": [["document_code", "=", "REQ"]],
-	},
-	{
-		# The six customer documents are physically printed, signed, and scanned.
-		# Store the actual layouts in the app so a restore does not replace them
-		# with unrelated or stale print formats.
-		"dt": "Print Format",
-		"filters": [["name", "in", [
-			"Hire Purchase Agreement",
-			"Schedule 1",
-			"Form 1",
-			"Form 2",
-			"Summary of Financial Obligations",
-			"Consent Form",
-		]]],
+		"filters": [["document_code", "in", ["REQ", "APPLICATION-ASSESSMENT"]]],
 	},
 	{
 		# The published public application is an app fixture, not a site-only
@@ -127,6 +119,7 @@ doc_events = {
 	"Loan Application": {
 		"before_insert": "comfort_homes.loan_application_workflow.validate_public_application_not_existing_customer",
 		"before_validate": [
+			"comfort_homes.signed_pack.ensure_assessment_customer_document",
 			"comfort_homes.loan_application_workflow.calculate_financials",
 			"comfort_homes.co_applicant.validate_existing_co_applicant",
 			"comfort_homes.loan_application_workflow.validate_branch_location",
