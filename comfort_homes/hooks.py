@@ -25,10 +25,12 @@ override_doctype_dashboards = {
 	"Loan Application": "comfort_homes.loan_mapping.get_loan_application_dashboard_data",
 }
 after_migrate = [
-	"comfort_homes.webform_setup.inject_loan_application_duplicate_check",
 	"comfort_homes.co_applicant.ensure_loan_application_fields",
 	"comfort_homes.co_applicant.configure_co_applicant_profile",
-	"comfort_homes.signed_pack.normalize_customer_print_formats",
+	# This is deliberately the full app-owned setup, not merely the legacy CSS
+	# cleanup.  It syncs all seven reviewed formats and backfills the non-signing
+	# Assessment document row on existing Loan Applications.
+	"comfort_homes.webform_setup.setup_web_form_and_print_formats",
 ]
 # A first-time app installation performs fixture sync but not an ordinary site
 # migration.  Apply the same idempotent Web Form setup after either path.
