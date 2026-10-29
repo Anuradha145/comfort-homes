@@ -1,0 +1,181 @@
+<style>
+/* Flexible Purchase - legal instrument print system. Table/block layout only (wkhtmltopdf safe). Black on white, serif. */
+@page { size: A4; margin: 16mm 16mm 18mm 16mm; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { font-family: "Times New Roman", Times, "Liberation Serif", "Nimbus Roman", "DejaVu Serif", serif; font-size: 10.5pt; line-height: 1.38; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 10.5pt; line-height: 1.38; }
+td, th { vertical-align: top; padding: 0; word-wrap: break-word; }
+tr { page-break-inside: avoid; }
+p { margin: 0 0 5pt 0; text-align: justify; }
+b, .b { font-weight: bold; }
+.muted { color: #333; }
+.center { text-align: center; }
+.right { text-align: right; }
+
+/* ---- title block ---- */
+.head { text-align: center; margin: 0 0 10pt 0; }
+.org { font-size: 10pt; font-weight: bold; letter-spacing: 0.06em; text-transform: uppercase; }
+.org2 { font-size: 9.5pt; font-style: italic; margin-bottom: 8pt; }
+.title { font-size: 16pt; font-weight: bold; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1.2; margin: 4pt 0 2pt 0; }
+.subtitle { font-size: 10pt; font-style: italic; margin-top: 2pt; }
+.dbl { border-top: 0.75pt solid #000; border-bottom: 0.75pt solid #000; height: 3.2pt; margin-top: 8pt; }
+.refbox { margin: 6pt 0 10pt 0; border: 0.75pt solid #000; }
+.refbox td { padding: 3pt 7pt 4pt 7pt; border-right: 0.75pt solid #000; }
+.refbox td:last-child { border-right: none; }
+.refbox .rl { font-size: 8.5pt; font-style: italic; display: block; }
+.refbox .rv { font-weight: bold; font-size: 10.5pt; display: block; min-height: 12pt; }
+
+/* ---- key terms (formal particulars box) ---- */
+.key { margin: 4pt 0 12pt 0; border: 1pt solid #000; page-break-inside: avoid; }
+.key th { background: #e6e6e6; border-bottom: 0.75pt solid #000; padding: 3pt 7pt; font-size: 9.5pt; letter-spacing: 0.05em; text-transform: uppercase; text-align: left; }
+.key td { padding: 5pt 7pt 6pt 7pt; border-right: 0.75pt solid #000; }
+.key td:last-child { border-right: none; }
+.k-label { font-size: 8.5pt; font-style: italic; margin-bottom: 1pt; }
+.k-val { font-size: 13pt; font-weight: bold; line-height: 1.15; white-space: nowrap; }
+.k-sub { font-size: 8.5pt; font-style: italic; }
+
+/* ---- headings ---- */
+.sec { font-size: 10.5pt; font-weight: bold; letter-spacing: 0.06em; text-transform: uppercase; text-align: center; border-bottom: 0.75pt solid #000; padding-bottom: 2pt; margin: 14pt 0 7pt 0; page-break-after: avoid; }
+.lead { margin: 0 0 8pt 0; }
+
+/* ---- numbered clauses (hanging indent) ---- */
+.cl { margin: 0 0 7pt 0; padding-left: 11mm; position: relative; page-break-inside: avoid; }
+.cl .n { position: absolute; left: 0; top: 0; width: 10mm; font-weight: bold; }
+.cl .h { font-weight: bold; margin-bottom: 2pt; }
+.cl p { margin: 0 0 4pt 0; text-align: justify; }
+.cl ul { margin: 2pt 0 4pt 0; padding-left: 14pt; }
+.cl li { margin: 0 0 2pt 0; text-align: justify; }
+.sub { padding-left: 8mm; margin: 0 0 3pt 0; text-align: justify; }
+
+/* ---- ruled grids ---- */
+.kv { border: 0.75pt solid #000; }
+.kv td { padding: 4pt 7pt; border: 0.5pt solid #000; }
+.kv .l { background: #f0f0f0; width: 30%; font-weight: normal; }
+.kv .v { font-weight: bold; }
+
+.fin { border: 0.75pt solid #000; }
+.fin td { padding: 3.5pt 7pt; border: 0.5pt solid #000; }
+.fin .r { width: 12mm; font-weight: bold; white-space: nowrap; text-align: center; }
+.fin .cur { width: 7mm; text-align: right; padding-right: 2pt; border-right: none; }
+.fin .amt { width: 30mm; text-align: right; font-weight: bold; white-space: nowrap; border-left: none; }
+.fin tr.strong td { border-top: 2.25pt double #000; background: #ececec; font-weight: bold; }
+.fin tr.hl td { background: #f4f4f4; font-weight: bold; }
+
+.goods { border: 0.75pt solid #000; }
+.goods th { text-align: left; font-size: 9.5pt; font-weight: bold; padding: 3pt 7pt; background: #e6e6e6; border: 0.5pt solid #000; }
+.goods td { padding: 4pt 7pt; border: 0.5pt solid #000; height: 18pt; }
+.goods .no { width: 11mm; text-align: center; }
+.goods .q { width: 16mm; text-align: center; }
+.goods .p { width: 30mm; text-align: right; white-space: nowrap; }
+
+/* ---- prescribed notices ---- */
+.notice { border: 2.25pt solid #000; padding: 9pt 14pt; margin: 12pt 0; text-align: center; font-weight: bold; page-break-inside: avoid; }
+.notice .nt { font-size: 12pt; letter-spacing: 0.1em; margin-bottom: 4pt; }
+.notice-soft { border: 1.5pt solid #000; padding: 8pt 14pt 6pt 14pt; margin: 12pt 0; page-break-inside: avoid; }
+.notice-soft .nt { font-weight: bold; text-align: center; letter-spacing: 0.04em; margin-bottom: 5pt; padding-bottom: 3pt; border-bottom: 0.75pt solid #000; }
+.notice-soft p { margin: 0 0 4pt 0; text-align: justify; }
+
+/* ---- execution blocks ---- */
+.sign { margin-top: 14pt; page-break-inside: avoid; }
+.sign td { padding: 0 12pt 0 0; vertical-align: top; }
+.sign td:last-child { padding-right: 0; }
+.sign .who { font-weight: bold; text-transform: uppercase; font-size: 9.5pt; letter-spacing: 0.05em; margin-bottom: 4pt; }
+.sign .box { height: 20mm; border-bottom: 0.9pt solid #000; }
+.sign .cap { font-size: 8.5pt; font-style: italic; margin-top: 2pt; }
+.sign .line { margin-top: 7pt; border-bottom: 0.5pt solid #000; padding-bottom: 1pt; min-height: 13pt; }
+.sign .line span { font-size: 9pt; font-style: italic; }
+.sig-img { max-width: 62mm; max-height: 18mm; display: block; }
+.block { page-break-inside: avoid; }
+.avoid { page-break-inside: avoid; }
+.pagebreak { page-break-before: always; }
+</style>
+{# ===== shared setup - identical in all six formats ===== #}
+{% macro money(v) %}{{ "{:,.2f}".format((v or 0)|float) }}{% endmacro %}
+{% set period_label = doc.custom_flexi_payment_period or "Monthly" %}
+{% set period_key = period_label|lower|replace("-", "")|replace(" ", "") %}
+{% set count_map = {"weekly": doc.custom_flexi_weekly_instalments, "fortnightly": doc.custom_flexi_fortnightly_instalments, "bimonthly": doc.custom_flexi_bimonthly_instalments, "monthly": doc.custom_flexi_monthly_instalments} %}
+{% set amount_map = {"weekly": doc.custom_flexi_weekly_instalment_amount, "fortnightly": doc.custom_flexi_fortnightly_instalment_amount, "bimonthly": doc.custom_flexi_bimonthly_instalment_amount, "monthly": doc.custom_flexi_monthly_instalment_amount} %}
+{% set n_instalments = count_map.get(period_key) or doc.repayment_periods or "" %}
+{% set instalment_amount = amount_map.get(period_key) or doc.repayment_amount or 0 %}
+{% set addr_parts = [doc.address_line_1, (doc.address_line_2 if doc.address_line_2 != doc.address_line_1 else none), (doc.custom_suburb or doc.suburb), doc.city, (doc.custom_province if doc.custom_province != doc.city else none), doc.country, (doc.zip_code if doc.zip_code and doc.zip_code != 0 else none)] %}
+{% set address = addr_parts|select|join(", ") %}
+{% set items = doc.custom_flexi_purchase_items or [] %}
+{% set office = doc.company_registered_office or "Lot 18 Yarawa Road, Nabua, Suva, Central Division, Fiji" %}
+{% set hirer_signature = doc.hirer_signature or doc.custom_applicant_signature or "" %}
+{% set hirer_date = doc.hirer_signature_date or doc.custom_flexi_hirer_signature_date or "" %}
+{% set rep_name = doc.company_representative_name or doc.custom_flexi_company_representative_name or "" %}
+{% set rep_signature = doc.company_representative_signature or doc.custom_flexi_company_representative_signature or "" %}
+{% set rep_date = doc.company_representative_date or doc.custom_flexi_company_representative_date or "" %}
+{% set co_applicants = get_co_applicants(doc.name) %}
+{% set has_co_applicants = co_applicants|length > 0 %}
+{% set hirer_names = doc.applicant_name or "" %}
+<div class="head">
+<div class="org">Comfort Home Furnishing Pte Limited</div>
+<div class="org2">trading as Flexible Purchase</div>
+<div class="title">Form 1: Information statement</div>
+<div class="subtitle">Things you should know about your proposed credit contract</div>
+<div class="dbl"></div>
+</div>
+<table class="refbox"><tr>
+<td style="width:30%;"><span class="rl">HP Account No.</span><span class="rv">{{ doc.custom_flexi_hp_account_number or "" }}</span></td>
+<td style="width:30%;"><span class="rl">Quotation No.</span><span class="rv">{{ doc.custom_flexi_quotation_number or "" }}</span></td>
+<td style="width:40%;"><span class="rl">Hirer / Borrower</span><span class="rv">{{ hirer_names }}</span></td>
+</tr></table>
+
+<div class="block"><div class="sec">The contract</div><div class="cl "><span class="n">1.</span><div class="h">How can I get details of my proposed credit contract?</div><p>Your credit provider must give you a pre-contractual statement containing certain information about your contract. The pre-contractual statement and this document must be given to you before-</p><ul><li>Your contract is entered into; or</li><li>You make an offer to enter into the contract;</li></ul><p>Which ever happens first.</p></div>
+</div>
+<div class="cl "><span class="n">2.</span><div class="h">How can I get a copy of the final contract?</div><p>If the contract document is to be signed by you and returned to your credit provider, you must be given a copy to keep.</p><p>Also, the credit provider must give you a copy of the final contract within 14 days it is made. This rule does not, however, apply, if the contract can be accepted by you –</p><ul><li>Accessing or drawing down credit to incur a liability, or</li><li>Satisfying other conditions</li></ul><p>The rule will also not apply if, when the credit provider gives you a copy of document to sign and return to the credit provider, you are given a copy of the contract document signed by the credit provider to keep.</p><p>If you want another copy of your contract write to your credit provider and ask for one. Your credit provider may charge you a fee. Your credit provider has to give you a copy-</p><ul><li>Within 14 days of your written request if the original contract came into existence 1 year or less before your request; or</li><li>Otherwise within 30 days of your written request.</li></ul></div>
+<div class="cl "><span class="n">3.</span><div class="h">Can I terminate the contract?</div><p>Yes. So long as you have not obtained or tried to obtain any credit under the contract, you can terminate the contract by writing to the credit provider. However, you will still have to pay any fees or charges incurred before you terminated the contract.</p></div>
+<div class="cl "><span class="n">4.</span><div class="h">How can I find out the payout for the contract?</div><p>You can pay your credit provider the amount required to pay out your credit contract on the day you wish to end your contract.</p></div>
+<div class="cl "><span class="n">5.</span><div class="h">How can I find out the payout figure?</div><p>You can write to your credit provider the amount required to pay out your credit contract on the day you wish to end your contract.</p><p>Your credit provider must give you a statement within 7 days after your request to the credit provider. You may be charged a fee for the statement.</p></div>
+<div class="cl "><span class="n">6.</span><div class="h">Will I pay less interest if I pay out my account early?</div><p>Yes. The interest you can be charged depends on the actual time money is owed. However, you may have to pay an early termination charge (if your contract permits your credit provider to charge one) and other fees.</p></div>
+<div class="cl "><span class="n">7.</span><div class="h">Can my contract be changed by my credit provider?</div><p>Yes. But only if your contract says so.</p></div>
+<div class="cl "><span class="n">8.</span><div class="h">Will I be told in advance if my credit provider is going to make a change in the contract?</div><p>That depends on the type of change. For example-</p><ul><li>You get at least same day notice for a change to an annual percentage rate. The notice may be written notice to you or a notice published in a newspaper.</li><li>You get 30 days advance written notice for-</li></ul><div class="sub">I. A change in the way in which interest is calculated; or</div><div class="sub">II. A change in credit fees; or</div><div class="sub">III. Any other changes by your credit provider</div><p>Except where the change reduces what you have to pay, or the change happens automatically under the contract.</p></div>
+<div class="cl "><span class="n">9.</span><div class="h">Is there anything I can do if I think that my contract is unjust?</div><p>Yes. You should first talk to your credit provider. Discuss the matter and see if you can come to some arrangement. If that is not successful, you could apply to the court. Contact the Department of Fair Trading and Consumer Affairs or get legal advice on how to go about this.</p></div>
+<div class="block"><div class="sec">Insurance</div><div class="cl "><span class="n">10.</span><div class="h">Do I have to take out insurance?</div><p>Your credit provider can insist that you take out or pay the cost of types of insurance specifically allowed by law. These include compulsory third-party personal injury insurance, mortgage indemnity insurance, or insurance covering property secured by any mortgage. Otherwise, you can decide if you want to take out insurance or not.</p></div>
+</div>
+<div class="cl "><span class="n">11.</span><div class="h">Will I get details of my insurance now?</div><p>Yes. If you have taken out insurance over mortgaged property or consumer credit insurance, and the premium is financed by your credit provider, the insurer must give you a copy of the policy within 14 days after the insurer has accepted the insurance proposal.</p><p>Also, if you acquire an interest in any such insurance policy which is taken out by your credit provider, then within 14 days after the insurer has accepted the insurance proposal.</p><p>You can always ask the insurer for details of your insurance contract. If you ask in writing, your insurer must give you a statement containing all the provisions of the contract.</p></div>
+<div class="cl "><span class="n">12.</span><div class="h">If the insurer does not accept my proposal, will I be told?</div><p>Yes, if the insurance were to be financed by the credit contract. The insurer will inform you if the proposal is rejected.</p></div>
+<div class="cl "><span class="n">13.</span><div class="h">In that case, what happens to the premiums?</div><p>Your credit provider must give you a refund or credit unless the insurance is to be arranged with another insurer.</p></div>
+<div class="cl "><span class="n">14.</span><div class="h">What happens if my credit contract ends before any insurance contract over the mortgaged property?</div><p>You can end the insurance contract and get a proportionate rebate of any premium from the insurer.</p></div>
+<div class="block"><div class="sec">Mortgages</div><div class="cl "><span class="n">15.</span><div class="h">If my contract says I have to give a mortgage, what does this mean?</div><p>A mortgage means that you give your credit provider certain rights over any property you mortgage. If you default under your contract, you can lose that property and you might still owe money to the credit provider.</p></div>
+</div>
+<div class="cl "><span class="n">16.</span><div class="h">Should I get a copy of mortgage?</div><p>Yes. It can be part of your credit contract or, if it is a separate document, you will be given a copy of the mortgage within 14 days after your mortgage is entered into.</p><p>However, you need not be given a copy if, when the credit provider gives you a copy of the mortgage document to sign and return to the credit provider, you are also given a copy of the mortgage document to keep.</p></div>
+<div class="cl "><span class="n">17.</span><div class="h">Is there anything that I am not allowed to do with the property mortgaged?</div><p>The law says you cannot assign or dispose of the property unless you have your credit provider's or the court's permission. You must also look after the property. Read the mortgage document as well. It will usually have other terms and conditions about what you can or cannot do with the property.</p></div>
+<div class="cl "><span class="n">18.</span><div class="h">What can I do if I find that I cannot afford my repayments and there is a mortgage over the property?</div><p>See the answers to questions 22 and 23</p><p>Otherwise you may –</p><ul><li>If the mortgaged property is goods, give the property back to your credit provider, together with a letter saying you want the credit provider to sell the property for you;</li><li>Sell the property, but only if your credit provider gives permission first;</li></ul><p>OR</p><ul><li>Give the property to someone who may then take over the repayments, but only if your credit provider gives permission first.</li></ul><p>If your provider won't give permission contact the Department of Fair Trading and Consumer Affairs for help.</p><p>If you have a guarantor, talk to the guarantor who may be able to help you.</p><p>You should understand that you may owe money to your credit provider even after the mortgaged property is sold.</p></div>
+<div class="cl "><span class="n">19.</span><div class="h">Can my credit provider take or sell the mortgaged property?</div><p>Yes, if you have not carried out all of your obligations under the contract.</p></div>
+<div class="cl "><span class="n">20.</span><div class="h">If my credit provider writes asking me where the mortgaged goods are, do I have to say where they are?</div><p>Yes. You have 7 days after receiving your credit provider's request to tell your credit provider. If you do not have the goods you must give credit provider all the information you have so they can be traced.</p></div>
+<div class="cl "><span class="n">21.</span><div class="h">When can my credit provider or its agent come into a residence to take possession of mortgaged goods?</div><p>Your credit provider can only do so if it has the court's approval or the written consent of the occupier which is given after the occupier is informed in writing of the relevant section in the Consumer Credit Act.</p></div>
+<div class="block"><div class="sec">General</div><div class="cl "><span class="n">22.</span><div class="h">What do I do if I cannot make a repayment?</div><p>Get in touch with your credit provider immediately. Discuss the matter and see if you can come to some arrangement. You can ask your credit provider to change your contract in several ways, for example-</p><ul><li>To extend the term of the contract and either reduce the amount of each payment accordingly, or defer payments for a specified period, or</li><li>To simply defer payments for a specified period.</li></ul></div>
+</div>
+<div class="cl "><span class="n">23.</span><div class="h">What if my credit provider and I cannot agree on a suitable arrangement?</div><p>If you have been unemployed, sick or there is another good reason why you are having problems with your contract, then your contract may be able to be changed to meet your situation.</p><p>You may be able to apply to the court. Contact the Department of Fair Trading and Consumer Affairs or get legal advice on how to go about this.</p><p>There are other people, such as financial advisors, who may be able to help.</p></div>
+<div class="cl "><span class="n">24.</span><div class="h">Can my credit provider take action against me?</div><p>Yes, if you are in default under your contract. But the law says that you cannot be unduly harassed or threatened for repayments. If you are being unduly harassed or threatened, contact the Department of Fair Trading and Consumer Affairs, or get legal advice.</p></div>
+<div class="cl "><span class="n">25.</span><div class="h">Do I have any other legal rights and obligations?</div><p>Yes. The law will give you other rights and obligations. You should READ YOUR CONTRACT carefully.</p></div>
+<div class="notice-soft"><div class="nt">NOTICE</div><p class="b">IF YOU HAVE ANY DOUBTS OR WANT MORE INFORMATION, CONTACT THE DEPARTMENT OF FAIR TRADING AND CONSUMER AFFAIRS OR GET LEGAL ADVICE. PLEASE KEEP THIS INFORMATION STATEMENT. YOU MAY WANT SOME INFORMATION FROM IT AT A LATER DATE.</p></div>
+<div class="block">
+<div class="sec">Acknowledgement of receipt</div>
+<table class="kv"><tr><td class="l">Dated at</td><td class="v">{{ address }}</td><td class="l" style="width:12%;">This</td><td class="v" style="width:24%;">{{ frappe.utils.formatdate(doc.form1_dated_at, "dd-mm-yyyy") if doc.form1_dated_at else "" }}</td></tr></table>
+<p style="margin-top:8pt;">I/we acknowledge that I/we have received a copy of this information statement.</p>
+<table class="sign"><tr>
+<td style="width:50%;"><div class="who">Customer</div><div class="box">{% if doc.custom_applicant_signature %}<img class="sig-img" src="{{ doc.custom_applicant_signature }}"/>{% endif %}</div><div class="cap">Signature</div>
+<div class="line"><span>Name:</span>&nbsp; <b>{{ hirer_names }}</b></div>
+<div class="line"><span>Date:</span>&nbsp; <b>{{ frappe.utils.formatdate(doc.form1_customer_date, "dd-mm-yyyy") if doc.form1_customer_date else "" }}</b></div></td>
+<td style="width:50%;"><div class="who">Witness</div><div class="box">{% if doc.custom_witness_signature %}<img class="sig-img" src="{{ doc.custom_witness_signature }}"/>{% endif %}</div><div class="cap">Signature</div>
+<div class="line"><span>Name:</span>&nbsp; <b>{{ doc.custom_witness_name or "" }}</b></div>
+<div class="line"><span>Address:</span>&nbsp; <b>{{ doc.custom_witness_address or "" }}</b></div>
+<div class="line">
+    <span>Date:</span>&nbsp; 
+    <b>
+        {% set witness_date = doc.custom_witness_date or frappe.utils.nowdate() %}
+        {{ frappe.utils.formatdate(witness_date, "dd-MM-yyyy") }}
+    </b>
+</div></td>
+</tr></table></div>
+
+{% if has_co_applicants %}
+{% for co_applicant in co_applicants %}
+<table class="sign"><tr><td style="width:50%;"><div class="who">Co-applicant signature</div><div class="box"></div><div class="cap">Signature</div><div class="line"><span>Name:</span>&nbsp; <b>{{ applicant_name(co_applicant) }}</b></div><div class="line"><span>Date:</span>&nbsp; <b>{% set witness_date = doc.custom_witness_date or frappe.utils.nowdate() %}{{ frappe.utils.formatdate(witness_date, "dd-MM-yyyy") }}</b></div></td><td></td></tr></table>
+{% endfor %}
+{% endif %}
+

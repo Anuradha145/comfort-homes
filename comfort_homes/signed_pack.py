@@ -9,6 +9,7 @@ does not sign, alter, or substitute any documents.
 import hashlib
 import re
 from io import BytesIO
+from pathlib import Path
 from urllib.parse import urlencode
 
 import frappe
@@ -80,6 +81,197 @@ CUSTOMER_PRINT_FORMATS = (
 	"Summary of Financial Obligations",
 	"Consent Form",
 )
+
+# The customer-approved replacements are deliberately stored as app source,
+# rather than depending on records that only exist in one site database.  The
+# idempotent application setup syncs them after install/fixture sync, ensuring
+# a restored site uses the reviewed layouts rather than stale database HTML.
+REVIEWED_PRINT_FORMATS = {
+	"Test Agreement": "test_agreement.html",
+	"Schedule 1 Test": "schedule_1_test.html",
+	"Form 1 Test": "form_1_test.html",
+	"Form2 Test": "form_2_test.html",
+	"Summary Test": "summary_test.html",
+	"Consent Test": "consent_test.html",
+	"Application Print WIP": "application_print_wip.html",
+}
+
+DOCUMENT_PRINT_FORMATS = {
+	"HP-AGREEMENT": "Test Agreement",
+	"SCHEDULE-1": "Schedule 1 Test",
+	"FORM-1": "Form 1 Test",
+	"FORM-2": "Form2 Test",
+	"FINANCIAL-OBLIGATIONS": "Summary Test",
+	"CONSENT-FORM": "Consent Test",
+	"APPLICATION-ASSESSMENT": "Application Print WIP",
+}
+
+ASSESSMENT_DOCUMENT_CODE = "APPLICATION-ASSESSMENT"
+ASSESSMENT_TEMPLATE_VALUES = {
+	"name": "LDT-00008",
+	"document_code": ASSESSMENT_DOCUMENT_CODE,
+	"document_name": "Application Assessment Summary",
+	"description": "Internal assessment summary for the complete loan application.",
+	"print_format": "Application Print WIP",
+	"template_type": "Print Format",
+	"status": "Current",
+	"sequence": 7,
+	"version": 1,
+	"requires_signature": 0,
+	"requires_customer_read": 0,
+	"requires_acknowledgement": 0,
+	"requires_director_signature": 0,
+}
+
+
+def sync_reviewed_print_formats():
+	"""Sync reviewed, app-owned print documents into a site.
+
+	Called by the idempotent app setup after installation and fixture sync.  It
+	is safe to re-run and creates a missing custom format when needed.
+	"""
+	formats_dir = Path(__file__).with_name("print_formats")
+	updated = []
+	for format_name, filename in REVIEWED_PRINT_FORMATS.items():
+		path = formats_dir / filename
+		if not path.exists():
+			frappe.throw(_("The app-owned {0} HTML file is missing.").format(format_name))
+		html = path.read_text(encoding="utf-8")
+		if frappe.db.exists("Print Format", format_name):
+			print_format = frappe.get_doc("Print Format", format_name)
+			print_format.html = html
+			print_format.save(ignore_permissions=True)
+		else:
+			frappe.get_doc(
+				{
+					"doctype": "Print Format",
+					"name": format_name,
+					"doc_type": "Loan Application",
+					"print_format_type": "Jinja",
+					"custom_format": 1,
+					"module": "Loan Management",
+					"html": html,
+				}
+			).insert(ignore_permissions=True)
+		updated.append(format_name)
+
+	_ensure_assessment_document_template()
+
+	# Customer Documents is driven by Loan Document Template.  Map by stable
+	# document code rather than site-specific LDT names, so individual and
+	# combined buttons consistently use the reviewed replacement layouts.
+	for document_code, format_name in DOCUMENT_PRINT_FORMATS.items():
+		for template in frappe.get_all(
+			"Loan Document Template", filters={"document_code": document_code}, pluck="name"
+		):
+			frappe.db.set_value("Loan Document Template", template, "print_format", format_name, update_modified=False)
+	frappe.clear_cache(doctype="Loan Application")
+	return {"updated_print_formats": updated}
+
+
+def sync_test_agreement_print_format():
+	"""Backward-compatible explicit entry point for the first reviewed format."""
+	return sync_reviewed_print_formats()
+
+
+def _assessment_template():
+	"""Return the app-owned assessment template, if its schema is installed."""
+	if not frappe.db.exists("DocType", "Loan Document Template"):
+		return None
+	return frappe.db.get_value(
+		"Loan Document Template",
+		{"document_code": ASSESSMENT_DOCUMENT_CODE, "status": "Current"},
+		["name", "document_code", "version"],
+		as_dict=True,
+	)
+
+
+def _ensure_assessment_document_template():
+	"""Create/update the seventh, non-signing Customer Document template."""
+	if not frappe.db.exists("DocType", "Loan Document Template"):
+		return None
+	template = _assessment_template()
+	if template:
+		frappe.db.set_value(
+			"Loan Document Template", template.name,
+			{key: value for key, value in ASSESSMENT_TEMPLATE_VALUES.items() if key != "name"},
+			update_modified=False,
+		)
+		return _assessment_template()
+	return frappe.get_doc({"doctype": "Loan Document Template", **ASSESSMENT_TEMPLATE_VALUES}).insert(
+		ignore_permissions=True
+	)
+
+
+def ensure_assessment_customer_document(doc, method=None):
+	"""Add the non-signing assessment summary to new or edited applications.
+
+	The row is deliberately idempotent and does not change any existing document
+	or signing status.  It makes the assessment available through the same
+	individual-print and Download All Documents paths as the six legal forms.
+	"""
+	template = _assessment_template()
+	if not template or not doc.meta.has_field("custom_customer_documents"):
+		return
+	for row in doc.get("custom_customer_documents") or []:
+		if row.document_template == template.name or row.document_code == ASSESSMENT_DOCUMENT_CODE:
+			return
+	row = doc.append("custom_customer_documents", {})
+	row.document_template = template.name
+	row.document_code = template.document_code
+	row.version = template.version or 1
+	row.status = "Pending"
+
+
+@frappe.whitelist()
+def add_assessment_document_to_existing_applications():
+	"""Explicit, safe one-time backfill for existing non-cancelled applications.
+
+	It must be deliberately invoked after the reviewed print pack is deployed;
+	it does not run during migration and never replaces existing child rows.
+	"""
+	template = _assessment_template()
+	if not template:
+		frappe.throw(_("The Application Assessment Summary template is not installed."))
+
+	added = 0
+	applications = frappe.get_all("Loan Application", filters={"docstatus": ["!=", 2]}, pluck="name")
+	for application_name in applications:
+		exists = frappe.db.exists(
+			"Loan Customer Agreement",
+			{
+				"parent": application_name,
+				"parenttype": "Loan Application",
+				"parentfield": "custom_customer_documents",
+				"document_template": template.name,
+			},
+		)
+		if exists:
+			continue
+		last_row = frappe.get_all(
+			"Loan Customer Agreement",
+			filters={"parent": application_name, "parentfield": "custom_customer_documents"},
+			fields=["idx"],
+			order_by="idx desc",
+			limit_page_length=1,
+		)
+		idx = (last_row[0].idx if last_row else 0) + 1
+		frappe.get_doc(
+			{
+				"doctype": "Loan Customer Agreement",
+				"parent": application_name,
+				"parenttype": "Loan Application",
+				"parentfield": "custom_customer_documents",
+				"idx": idx,
+				"document_template": template.name,
+				"document_code": template.document_code,
+				"version": template.version or 1,
+				"status": "Pending",
+			}
+		).db_insert()
+		added += 1
+	frappe.db.commit()
+	return {"added": added}
 
 
 def _set_print_aliases(application):

@@ -19,5 +19,26 @@
   "template_file": null,
   "template_type": "Uploaded PDF",
   "version": 1
+ },
+ {
+  "description": "Internal assessment summary for the complete loan application, including linked co-applicant figures where present.",
+  "docstatus": 0,
+  "doctype": "Loan Document Template",
+  "document_code": "APPLICATION-ASSESSMENT",
+  "document_name": "Application Assessment Summary",
+  "effective_from": null,
+  "html_template": null,
+  "modified": "2026-10-29 00:00:00.000000",
+  "name": "LDT-00008",
+  "print_format": "Application Print WIP",
+  "requires_acknowledgement": 0,
+  "requires_customer_read": 0,
+  "requires_director_signature": 0,
+  "requires_signature": 0,
+  "sequence": 7,
+  "status": "Current",
+  "template_file": null,
+  "template_type": "Print Format",
+  "version": 1
  }
 ]
